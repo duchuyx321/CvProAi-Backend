@@ -7,13 +7,15 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
-import { Cv_versions, Cvs, Users } from '~/models';
+
+import { Cvs, Cv_versions, Users } from '~/models';
 
 export enum export_format {
     PDF = 'PDF',
     DOCX = 'DOCX',
     JSON = 'JSON',
 }
+
 @Table({ tableName: 'cv_exports', timestamps: true, underscored: true })
 export class Cv_exports extends Model<Cv_exports> {
     @PrimaryKey
@@ -23,40 +25,53 @@ export class Cv_exports extends Model<Cv_exports> {
         allowNull: false,
     })
     declare id: string;
+
     @ForeignKey(() => Cvs)
     @Column({
         type: DataType.UUID,
-        defaultValue: DataType.UUIDV4,
         allowNull: false,
     })
     cv_id!: string;
+
     @ForeignKey(() => Cv_versions)
     @Column({
         type: DataType.UUID,
-        defaultValue: DataType.UUIDV4,
-        allowNull: false,
+        allowNull: true,
     })
-    version_id!: string;
+    version_id?: string;
+
     @Column({
         type: DataType.ENUM(...Object.values(export_format)),
-        defaultValue: export_format.PDF,
         allowNull: false,
+        defaultValue: export_format.PDF,
     })
-    format!: string;
+    format!: export_format;
+
     @Column({
-        type: DataType.STRING,
+        type: DataType.TEXT,
         allowNull: false,
     })
     file_url!: string;
 
-    @Column(DataType.STRING(128))
+    @Column({
+        type: DataType.STRING(128),
+        allowNull: true,
+    })
     file_hash?: string;
 
     @ForeignKey(() => Users)
-    @Column(DataType.UUID)
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
     created_by?: string;
 
-    @BelongsTo(() => Cvs) cv?: Cvs;
-    @BelongsTo(() => Cv_versions) cv_versions?: Cv_versions;
-    @BelongsTo(() => Users) creator?: Users;
+    @BelongsTo(() => Cvs)
+    cv?: Cvs;
+
+    @BelongsTo(() => Cv_versions)
+    cv_version?: Cv_versions;
+
+    @BelongsTo(() => Users, 'created_by')
+    creator?: Users;
 }

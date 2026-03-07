@@ -3,25 +3,22 @@ import {
     Column,
     DataType,
     ForeignKey,
+    HasOne,
     Model,
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Plans } from '~/models';
+import { Users, Plans, Order_subscriptions } from '~/models';
 
 export enum subscription_status {
-    ACTIVE = 'ACTIVE', // đang hoạt động
-    CANCELED = 'CANCELED', // đã hủy
-    EXPIRED = 'EXPIRED', // hết hạn
-    PAST_DUE = 'PAST_DUE', // quá hạn
+    ACTIVE = 'ACTIVE',
+    CANCELED = 'CANCELED',
+    EXPIRED = 'EXPIRED',
+    PAST_DUE = 'PAST_DUE',
 }
 
-@Table({
-    tableName: 'subscriptions',
-    timestamps: true,
-    underscored: true,
-})
+@Table({ tableName: 'subscriptions', timestamps: true, underscored: true })
 export class Subscriptions extends Model<Subscriptions> {
     @PrimaryKey
     @Column({
@@ -32,11 +29,17 @@ export class Subscriptions extends Model<Subscriptions> {
     declare id: string;
 
     @ForeignKey(() => Users)
-    @Column({ type: DataType.UUID, allowNull: false })
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
     user_id!: string;
 
     @ForeignKey(() => Plans)
-    @Column({ type: DataType.UUID, allowNull: false })
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
     plan_id!: string;
 
     @Column({
@@ -53,13 +56,23 @@ export class Subscriptions extends Model<Subscriptions> {
     })
     current_period_start!: Date;
 
-    @Column({ type: DataType.DATE, allowNull: true })
+    @Column({
+        type: DataType.DATE,
+        allowNull: true,
+    })
     current_period_end?: Date;
 
-    @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
     cancel_at_period_end!: boolean;
 
-    @Column({ type: DataType.DATE, allowNull: true })
+    @Column({
+        type: DataType.DATE,
+        allowNull: true,
+    })
     canceled_at?: Date;
 
     @BelongsTo(() => Users)
@@ -67,4 +80,7 @@ export class Subscriptions extends Model<Subscriptions> {
 
     @BelongsTo(() => Plans)
     plan?: Plans;
+
+    @HasOne(() => Order_subscriptions)
+    order_subscription?: Order_subscriptions;
 }

@@ -1,0 +1,93 @@
+import {
+    BelongsTo,
+    Column,
+    DataType,
+    ForeignKey,
+    HasMany,
+    HasOne,
+    Model,
+    PrimaryKey,
+    Table,
+} from 'sequelize-typescript';
+
+import { Users, Payment_transactions, Order_subscriptions } from '~/models';
+
+export enum payment_status {
+    PENDING = 'PENDING',
+    PAID = 'PAID',
+    FAILED = 'FAILED',
+    CANCELED = 'CANCELED',
+    REFUNDED = 'REFUNDED',
+}
+
+@Table({ tableName: 'orders', timestamps: true, underscored: true })
+export class Orders extends Model<Orders> {
+    @PrimaryKey
+    @Column({
+        type: DataType.UUID,
+        defaultValue: DataType.UUIDV4,
+        allowNull: false,
+    })
+    declare id: string;
+
+    @ForeignKey(() => Users)
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
+    user_id!: string;
+
+    @Column({
+        type: DataType.STRING(64),
+        allowNull: false,
+        unique: true,
+    })
+    order_code!: string;
+
+    @Column({
+        type: DataType.BIGINT,
+        allowNull: false,
+    })
+    amount_cents!: number;
+
+    @Column({
+        type: DataType.STRING(10),
+        allowNull: false,
+        defaultValue: 'VND',
+    })
+    currency!: string;
+
+    @Column({
+        type: DataType.ENUM(...Object.values(payment_status)),
+        allowNull: false,
+        defaultValue: payment_status.PENDING,
+    })
+    status!: payment_status;
+
+    @Column({
+        type: DataType.STRING(50),
+        allowNull: true,
+    })
+    provider?: string;
+
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    description?: string;
+
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+    })
+    metadata?: Record<string, any>;
+
+    @BelongsTo(() => Users)
+    user?: Users;
+
+    @HasMany(() => Payment_transactions)
+    payment_transactions?: Payment_transactions[];
+
+    @HasOne(() => Order_subscriptions)
+    order_subscription?: Order_subscriptions;
+}

@@ -6,10 +6,9 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
-
 import { Subscriptions } from '~/models';
 
-@Table({ tableName: 'plans', timestamps: false, underscored: true })
+@Table({ tableName: 'plans', timestamps: true, underscored: true })
 export class Plans extends Model<Plans> {
     @PrimaryKey
     @Column({
@@ -19,17 +18,31 @@ export class Plans extends Model<Plans> {
     })
     declare id: string;
 
-    @Column({ type: DataType.STRING(50), allowNull: false, unique: true })
+    @Column({
+        type: DataType.STRING(50),
+        allowNull: false,
+        unique: true,
+    })
     code!: string;
 
-    @Column({ type: DataType.STRING(255), allowNull: false })
+    @Column({
+        type: DataType.STRING(255),
+        allowNull: false,
+    })
     name!: string;
 
-    @Column({ type: DataType.TEXT, allowNull: true })
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
     description?: string;
 
-    @Column({ type: DataType.BIGINT, allowNull: false, defaultValue: 0 })
-    price_cents!: string;
+    @Column({
+        type: DataType.BIGINT,
+        allowNull: false,
+        defaultValue: 0,
+    })
+    price_cents!: number;
 
     @Column({
         type: DataType.STRING(10),
@@ -45,18 +58,18 @@ export class Plans extends Model<Plans> {
     })
     interval!: string;
 
-    @Column({ type: DataType.JSONB, allowNull: true })
-    features?: any;
-
-    @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
-    is_active!: boolean;
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+    })
+    features?: Record<string, any>;
 
     @Column({
-        type: DataType.DATE,
+        type: DataType.BOOLEAN,
         allowNull: false,
-        defaultValue: DataType.NOW,
+        defaultValue: true,
     })
-    created_at!: Date;
+    is_active!: boolean;
 
     @HasMany(() => Subscriptions)
     subscriptions?: Subscriptions[];

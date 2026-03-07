@@ -1,14 +1,15 @@
 import {
+    BelongsTo,
     Column,
     DataType,
-    Model,
-    Table,
-    PrimaryKey,
     ForeignKey,
-    BelongsTo,
     HasOne,
+    Model,
+    PrimaryKey,
+    Table,
 } from 'sequelize-typescript';
-import { Ai_results, Cv_versions, Cvs, Users } from '~/models';
+
+import { Users, Cvs, Cv_versions, Ai_results } from '~/models';
 
 export enum ai_run_status {
     QUEUED = 'QUEUED',
@@ -33,23 +34,31 @@ export class Ai_runs extends Model<Ai_runs> {
         allowNull: false,
     })
     user_id!: string;
-    @ForeignKey(() => Cvs)
-    @Column({
-        type: DataType.UUID,
-        allowNull: false,
-    })
-    cv_id!: string;
-    @ForeignKey(() => Cvs)
-    @Column({
-        type: DataType.UUID,
-        allowNull: false,
-    })
-    version_id!: string;
 
-    @Column({ type: DataType.STRING(255), allowNull: true })
+    @ForeignKey(() => Cvs)
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
+    cv_id?: string;
+
+    @ForeignKey(() => Cv_versions)
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
+    version_id?: string;
+
+    @Column({
+        type: DataType.STRING(255),
+        allowNull: true,
+    })
     job_title?: string;
 
-    @Column({ type: DataType.TEXT, allowNull: true })
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
     job_description?: string;
 
     @Column({
@@ -59,29 +68,40 @@ export class Ai_runs extends Model<Ai_runs> {
     })
     status!: ai_run_status;
 
-    @Column({ type: DataType.STRING(100), allowNull: true })
+    @Column({
+        type: DataType.STRING(100),
+        allowNull: true,
+    })
     model?: string;
 
-    @Column({ type: DataType.INTEGER, allowNull: true })
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
     prompt_tokens?: number;
 
-    @Column({ type: DataType.INTEGER, allowNull: true })
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true,
+    })
     completion_tokens?: number;
 
-    @Column({ type: DataType.BIGINT, allowNull: true })
-    cost_cents?: string;
+    @Column({
+        type: DataType.BIGINT,
+        allowNull: true,
+    })
+    cost_cents?: number;
 
-    @Column({ type: DataType.TEXT, allowNull: true })
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
     error_message?: string;
 
     @Column({
         type: DataType.DATE,
-        allowNull: false,
-        defaultValue: DataType.NOW,
+        allowNull: true,
     })
-    created_at!: Date;
-
-    @Column({ type: DataType.DATE, allowNull: true })
     finished_at?: Date;
 
     @BelongsTo(() => Users)
@@ -91,8 +111,8 @@ export class Ai_runs extends Model<Ai_runs> {
     cv?: Cvs;
 
     @BelongsTo(() => Cv_versions)
-    cv_versions?: Cv_versions;
+    cv_version?: Cv_versions;
 
     @HasOne(() => Ai_results)
-    result?: Ai_results;
+    ai_result?: Ai_results;
 }

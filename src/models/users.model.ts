@@ -1,5 +1,4 @@
 import {
-    BelongsTo,
     BelongsToMany,
     Column,
     DataType,
@@ -10,7 +9,19 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Roles, User_roles, User_profile, Cvs, Cv_versions } from '~/models';
+import {
+    Roles,
+    User_roles,
+    User_profile,
+    Cvs,
+    Cv_versions,
+    Ai_runs,
+    Subscriptions,
+    Orders,
+    Usage_quotas,
+    Audit_logs,
+    Auth_tokens,
+} from '~/models';
 
 export enum user_status {
     ACTIVE = 'ACTIVE',
@@ -29,45 +40,72 @@ export class Users extends Model<Users> {
     declare id: string;
 
     @Column({
-        type: DataType.STRING,
+        type: DataType.STRING(255),
         unique: true,
         allowNull: false,
     })
     email!: string;
 
     @Column({
-        type: DataType.STRING,
-        allowNull: true,
+        type: DataType.STRING(255),
+        allowNull: false,
     })
     password_hash!: string;
 
     @Column({
-        type: DataType.STRING,
+        field: 'full_name',
+        type: DataType.STRING(255),
         allowNull: true,
     })
-    fullName!: string;
+    full_name?: string;
 
     @Column({
         type: DataType.ENUM(...Object.values(user_status)),
         defaultValue: user_status.ACTIVE,
         allowNull: false,
     })
-    status?: user_status;
+    status!: user_status;
 
-    @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
-    email_verified?: boolean;
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    email_verified!: boolean;
 
-    @Column({ type: DataType.DATE, allowNull: false })
+    @Column({
+        type: DataType.DATE,
+        allowNull: true,
+    })
     last_login_at?: Date;
 
     @BelongsToMany(() => Roles, () => User_roles)
-    roles?: Roles;
+    roles?: Roles[];
 
     @HasOne(() => User_profile)
     user_profile?: User_profile;
 
-    @BelongsTo(() => Cvs)
+    @HasMany(() => Cvs)
     cvs?: Cvs[];
-    @HasMany(() => Cv_versions)
-    cv_versions?: Cv_versions;
+
+    @HasMany(() => Cv_versions, 'created_by')
+    cv_versions?: Cv_versions[];
+
+    @HasMany(() => Ai_runs)
+    ai_runs?: Ai_runs[];
+
+    @HasMany(() => Subscriptions)
+    subscriptions?: Subscriptions[];
+
+    @HasMany(() => Orders)
+    orders?: Orders[];
+
+    @HasMany(() => Usage_quotas)
+    usage_quotas?: Usage_quotas[];
+
+    @HasMany(() => Audit_logs, 'actor_user_id')
+    audit_logs?: Audit_logs[];
+
+    @HasMany(() => Auth_tokens)
+    auth_tokens?: Auth_tokens[];
 }

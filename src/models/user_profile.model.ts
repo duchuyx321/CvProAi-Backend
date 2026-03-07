@@ -1,8 +1,8 @@
 import {
+    BelongsTo,
     Column,
     DataType,
     ForeignKey,
-    HasOne,
     Model,
     PrimaryKey,
     Table,
@@ -13,14 +13,17 @@ import { Users } from '~/models';
 export class User_profile extends Model<User_profile> {
     @PrimaryKey
     @ForeignKey(() => Users)
-    @Column({ type: DataType.UUID, allowNull: false })
-    declare user_id: string;
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
+    user_id!: string;
 
     @Column({
-        type: DataType.STRING,
+        type: DataType.STRING(30),
         allowNull: true,
     })
-    phome?: string;
+    phone?: string;
 
     @Column({
         type: DataType.TEXT,
@@ -29,19 +32,19 @@ export class User_profile extends Model<User_profile> {
     avatar_url?: string;
 
     @Column({
-        type: DataType.DATE,
+        type: DataType.DATEONLY,
         allowNull: true,
     })
-    dob?: Date;
+    dob?: string;
 
     @Column({
-        type: DataType.STRING,
+        type: DataType.STRING(255),
         allowNull: true,
     })
     location?: string;
 
     @Column({
-        type: DataType.STRING,
+        type: DataType.STRING(255),
         allowNull: true,
     })
     headline?: string;
@@ -53,11 +56,11 @@ export class User_profile extends Model<User_profile> {
     summary?: string;
 
     @Column({
-        type: DataType.JSON,
+        type: DataType.JSONB,
         allowNull: true,
     })
     links?: Record<string, any>;
 
-    @HasOne(() => Users)
+    @BelongsTo(() => Users)
     user?: Users;
 }

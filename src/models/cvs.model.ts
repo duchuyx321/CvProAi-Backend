@@ -8,17 +8,21 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
-import { Users, Cv_templates, Cv_versions } from '~/models';
 
-export enum cvs_status {
-    DRAFT = ' DRAFT',
+import {
+    Users,
+    Cv_templates,
+    Cv_versions,
+    Cv_exports,
+    Ai_runs,
+} from '~/models';
+
+export enum cv_status {
+    DRAFT = 'DRAFT',
     PUBLISHED = 'PUBLISHED',
     ARCHIVED = 'ARCHIVED',
 }
-export enum cvs_visibility {
-    PRIVATE = 'PRIVATE',
-    PUBLIC = 'PUBLIC',
-}
+
 @Table({ tableName: 'cvs', timestamps: true, underscored: true })
 export class Cvs extends Model<Cvs> {
     @PrimaryKey
@@ -28,28 +32,73 @@ export class Cvs extends Model<Cvs> {
         allowNull: false,
     })
     declare id: string;
+
     @ForeignKey(() => Users)
-    @Column({ type: DataType.UUID, allowNull: false })
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
     user_id!: string;
+
     @ForeignKey(() => Cv_templates)
-    @Column({ type: DataType.UUID, allowNull: false })
-    template_id!: string;
-    @Column({ type: DataType.STRING, allowNull: false })
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
+    template_id?: string;
+
+    @Column({
+        type: DataType.STRING(255),
+        allowNull: false,
+    })
     title!: string;
-    @Column({ type: DataType.STRING, defaultValue: 'vi', allowNull: false })
-    language?: string;
-    @Column({ type: DataType.STRING, defaultValue: 'vi', allowNull: false })
-    status?: string;
-    @Column({ type: DataType.STRING, unique: true, allowNull: false })
+
+    @Column({
+        type: DataType.STRING(20),
+        allowNull: false,
+        defaultValue: 'vi',
+    })
+    language!: string;
+
+    @Column({
+        type: DataType.ENUM(...Object.values(cv_status)),
+        allowNull: false,
+        defaultValue: cv_status.DRAFT,
+    })
+    status!: cv_status;
+
+    @Column({
+        type: DataType.STRING(20),
+        allowNull: false,
+        defaultValue: 'PRIVATE',
+    })
+    visibility!: string;
+
+    @Column({
+        type: DataType.STRING(255),
+        allowNull: true,
+        unique: true,
+    })
     slug?: string;
-    @Column({ type: DataType.JSON, allowNull: true })
-    meta?: string; // custom setting
+
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+    })
+    meta?: Record<string, any>;
 
     @BelongsTo(() => Users)
-    users?: Users;
+    user?: Users;
+
     @BelongsTo(() => Cv_templates)
-    cv_templates?: Cv_templates;
+    template?: Cv_templates;
 
     @HasMany(() => Cv_versions)
-    cv_versions?: Cv_versions;
+    cv_versions?: Cv_versions[];
+
+    @HasMany(() => Cv_exports)
+    cv_exports?: Cv_exports[];
+
+    @HasMany(() => Ai_runs)
+    ai_runs?: Ai_runs[];
 }

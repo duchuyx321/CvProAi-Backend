@@ -1,6 +1,4 @@
-export { user_status, Users } from '~/models/users.model';
-export { Roles } from '~/models/roles.model';
-export { User_roles } from '~/models/user_roles.model';
+export { user_status, user_role, Users } from '~/models/users.model';
 export { User_profile } from '~/models/user_profile.model';
 export { Cv_templates } from '~/models/cv_templates.model';
 export { Cvs } from '~/models/cvs.model';

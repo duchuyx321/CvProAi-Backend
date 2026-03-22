@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SequelizeModule, SequelizeModuleOptions } from '@nestjs/sequelize';
 import { sequelizeConfig } from '~/config/sequelize.config';
 import { PlansModule } from '~/modules/plans/plans.module';
+import { UsersModule } from '~/modules/users/users.module';
+import { AuthModule } from '~/modules/auth/auth.module';
+import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 
 @Module({
     imports: [
@@ -17,6 +20,9 @@ import { PlansModule } from '~/modules/plans/plans.module';
             ): SequelizeModuleOptions => sequelizeConfig(configService),
         }),
         PlansModule,
+        UsersModule,
+        AuthModule,
+        CvTemplatesModule,
     ],
     controllers: [],
     providers: [],

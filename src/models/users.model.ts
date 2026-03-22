@@ -1,5 +1,4 @@
 import {
-    BelongsToMany,
     Column,
     DataType,
     HasMany,
@@ -8,10 +7,9 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
+import * as bcrypt from 'bcryptjs';
 
 import {
-    Roles,
-    User_roles,
     User_profile,
     Cvs,
     Cv_versions,
@@ -27,6 +25,10 @@ export enum user_status {
     ACTIVE = 'ACTIVE',
     BANNED = 'BANNED',
     DELETED = 'DELETED',
+}
+export enum user_role {
+    ADMIN = 'ADMIN',
+    USER = 'USER',
 }
 
 @Table({ tableName: 'users', timestamps: true, underscored: true })
@@ -60,6 +62,13 @@ export class Users extends Model<Users> {
     full_name?: string;
 
     @Column({
+        type: DataType.ENUM(...Object.values(user_role)),
+        allowNull: false,
+        defaultValue: user_role.USER,
+    })
+    role!: user_role;
+
+    @Column({
         type: DataType.ENUM(...Object.values(user_status)),
         defaultValue: user_status.ACTIVE,
         allowNull: false,
@@ -78,9 +87,6 @@ export class Users extends Model<Users> {
         allowNull: true,
     })
     last_login_at?: Date;
-
-    @BelongsToMany(() => Roles, () => User_roles)
-    roles?: Roles[];
 
     @HasOne(() => User_profile)
     user_profile?: User_profile;
@@ -108,4 +114,15 @@ export class Users extends Model<Users> {
 
     @HasMany(() => Auth_tokens)
     auth_tokens?: Auth_tokens[];
+
+    // more
+    comparePassword(password: string): boolean {
+        const { password_hash } = this.get({ plain: true });
+        return bcrypt.compareSync(password, password_hash);
+    }
+    getUserWithoutPassword() {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password_hash, ...rest } = this.get({ plain: true });
+        return rest;
+    }
 }

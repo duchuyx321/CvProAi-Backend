@@ -6,10 +6,12 @@ import {
     Param,
     Patch,
     Post,
+    UseGuards,
 } from '@nestjs/common';
 import { PlansService } from './plans.service';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '~/modules/auth/guards/jwt-auth.guard';
 
 @ApiTags('Gói Dịch Vụ')
 @Controller('plans')
@@ -17,6 +19,7 @@ export class PlansController {
     constructor(private readonly plansService: PlansService) {}
     // GET
     @ApiOperation({ summary: 'Lấy tất cả các gói dịch vụ' })
+    @UseGuards(JwtAuthGuard)
     @Get('all')
     async getAllPlans() {
         return await this.plansService.findAll();

@@ -7,6 +7,7 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
+import * as bcrypt from 'bcryptjs';
 
 import { Users } from '~/models';
 
@@ -45,12 +46,11 @@ export class Auth_tokens extends Model<Auth_tokens> {
     })
     expires_at!: Date;
 
-    @Column({
-        type: DataType.DATE,
-        allowNull: true,
-    })
-    consumed_at?: Date;
-
     @BelongsTo(() => Users)
     user?: Users;
+
+    compareToken(token: string): boolean {
+        const { token_hash } = this.get({ plain: true });
+        return bcrypt.compareSync(token, token_hash);
+    }
 }

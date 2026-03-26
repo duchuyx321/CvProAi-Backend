@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
     IsBoolean,
+    IsDate,
     IsEnum,
     IsNotEmpty,
     IsNumber,
@@ -168,5 +169,24 @@ export const RegexNotRequired = (name: string, pattern: RegExp) =>
             description: `${name} không bắt buộc`,
         }),
         Matches(pattern, { message: `${name} không hợp lệ!` }),
+        IsOptional(),
+    );
+export const DateRequired = (name: string) =>
+    applyDecorators(
+        ApiProperty({
+            required: true,
+            description: `${name} là bắt buộc`,
+        }),
+        IsDate({ message: `${name} phải là date!` }),
+        IsNotEmpty({ message: `${name} không được bỏ trống!` }),
+    );
+
+export const DateNotRequired = (name: string) =>
+    applyDecorators(
+        ApiProperty({
+            required: false,
+            description: `${name} không bắt buộc`,
+        }),
+        IsDate({ message: `${name} phải là date!` }),
         IsOptional(),
     );

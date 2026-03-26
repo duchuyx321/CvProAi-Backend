@@ -6,6 +6,7 @@ import { PlansModule } from '~/modules/plans/plans.module';
 import { UsersModule } from '~/modules/users/users.module';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
+import { AuthTokenModule } from './modules/auth-token/auth-token.module';
 
 @Module({
     imports: [
@@ -23,6 +24,7 @@ import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
         UsersModule,
         AuthModule,
         CvTemplatesModule,
+        AuthTokenModule,
     ],
     controllers: [],
     providers: [],

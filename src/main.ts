@@ -2,6 +2,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from '~/app.module';
 import { TransformInterceptor } from '~/common/interceptor/response.interceptor';
@@ -11,6 +12,8 @@ import { SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
+    app.use(cookieParser());
+
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true, // loại bỏ các trường dư trong payload(dto)

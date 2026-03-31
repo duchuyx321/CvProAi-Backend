@@ -2,11 +2,12 @@ import {
     BadRequestException,
     ForbiddenException,
     Injectable,
+    NotFoundException,
 } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/sequelize';
 
-import { Users } from '~/models';
+import { user_status, Users } from '~/models';
 import { CreateUserDto } from '~/modules/users/dto/create-user.dto';
 import { Helper } from '~/utils/helpers';
 
@@ -15,7 +16,20 @@ export class UsersService {
     constructor(
         @InjectModel(Users) private readonly UsersModel: typeof Users,
     ) {}
+    async findById(user_id: string, role: string) {
+        const user = await this.UsersModel.findOne({
+            where: {
+                id: user_id,
+                role,
+                email_verified: true,
+                status: user_status.ACTIVE,
+            },
+        });
 
+        if (!user) throw new NotFoundException('Không tìm thầy người dùng.');
+
+        return user;
+    }
     async findByEmail(email: string) {
         return await this.UsersModel.findOne({
             where: { email },
@@ -35,13 +49,13 @@ export class UsersService {
                 'Email hoặc mật khẩu không chính xác!',
             );
 
-        if (!alreadyExists.email_verified)
+        if (!alreadyExists.dataValues.email_verified)
             throw new ForbiddenException('Tài khoản chưa được xác thực email!');
 
         const plainUser = alreadyExists.getUserWithoutPassword();
 
         return {
-            id: plainUser.id,
+            uid: plainUser.id,
             role: plainUser.role,
         };
     }
@@ -84,5 +98,23 @@ export class UsersService {
             throw new BadRequestException('Reset password không thành công.');
 
         return { message: 'Reset password  thành công.' };
+    }
+    async updateLastLoginAt(user_id: string, last_login_at?: Date) {
+        const updated = await this.UsersModel.update(
+            {
+                last_login_at: last_login_at
+                    ? last_login_at
+                    : new Date(Date.now()),
+            },
+            {
+                where: { id: user_id },
+            },
+        );
+        if (updated[0] === 0)
+            throw new BadRequestException(
+                'Cập nhật thời gian login không thành công.',
+            );
+
+        return { message: 'ập nhật thời gian login thành công.' };
     }
 }

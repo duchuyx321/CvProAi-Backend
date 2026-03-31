@@ -7,15 +7,22 @@ import { StringValue } from 'ms';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
+import { MailerConfig } from '~/config/mailer.config';
 import { UsersModule } from '~/modules/users/users.module';
 import { AuthTokenModule } from '~/modules/auth-token/auth-token.module';
-import { LocalAuthGuard } from '~/modules/auth/guards';
-import { LocalStrategy } from '~/modules/auth/strategies';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { MailerConfig } from '~/config/mailer.config';
-import { AuthJwtService } from './service/auth-jwt.service';
-import { AuthMailService } from './service/auth-mail.service';
+import {
+    LocalAuthGuard,
+    RefreshJwtAuthGuard,
+    JwtAuthGuard,
+    RolesGuard,
+} from '~/modules/auth/guards';
+import {
+    RefreshJwtStrategy,
+    JwtStrategy,
+    LocalStrategy,
+} from '~/modules/auth/strategies';
+
+import { AuthJwtService, AuthMailService } from '~/modules/auth/service';
 
 @Module({
     controllers: [AuthController],
@@ -27,6 +34,9 @@ import { AuthMailService } from './service/auth-mail.service';
         LocalAuthGuard,
         JwtAuthGuard,
         JwtStrategy,
+        RolesGuard,
+        RefreshJwtAuthGuard,
+        RefreshJwtStrategy,
     ],
     imports: [
         UsersModule,
@@ -48,6 +58,6 @@ import { AuthMailService } from './service/auth-mail.service';
                 MailerConfig(configService),
         }),
     ],
-    exports: [JwtAuthGuard],
+    exports: [JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

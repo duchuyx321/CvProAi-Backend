@@ -7,6 +7,7 @@ import { UsersModule } from '~/modules/users/users.module';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 import { AuthTokenModule } from './modules/auth-token/auth-token.module';
+import { UserProfileModule } from './modules/user_profile/user_profile.module';
 
 @Module({
     imports: [
@@ -25,6 +26,7 @@ import { AuthTokenModule } from './modules/auth-token/auth-token.module';
         AuthModule,
         CvTemplatesModule,
         AuthTokenModule,
+        UserProfileModule,
     ],
     controllers: [],
     providers: [],

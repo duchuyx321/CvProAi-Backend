@@ -23,15 +23,31 @@ export class AuthService {
         private readonly AuthMailService: AuthMailService,
     ) {}
 
-    async login({ id, role }) {
+    async login({ uid, role }) {
+        await this.usersService.updateLastLoginAt(uid);
+        const expires_at = this.AuthJwtService.getExpiresAt(
+            'JWT_REFRESH_TOKEN_EXPIRATION',
+        );
+        const newAuthToken = this.authTokenService.build(
+            {
+                expires_at,
+            },
+            uid,
+            AuthTokenType.REFRESH_TOKEN,
+        );
         const accessToken = await this.AuthJwtService.generateAccessToken({
-            id,
+            uid,
             role,
         });
         const refreshToken = await this.AuthJwtService.generateRefreshToken({
-            id,
+            uid,
             role,
+            jti: newAuthToken.dataValues.id,
         });
+        // add token in db
+        const token_hash = Helper.hashValue(refreshToken);
+        newAuthToken.setDataValue('token_hash', token_hash);
+        await newAuthToken.save();
         return {
             accessToken,
             refreshToken,
@@ -57,6 +73,7 @@ export class AuthService {
         );
         if (!userAlreadyExist)
             throw new NotFoundException('Email không tồn tại!');
+
         await this.authTokenService.verifyToken(
             userAlreadyExist.dataValues.id,
             AuthTokenType.OTP_SendMailer,
@@ -64,17 +81,13 @@ export class AuthService {
         );
         if (verifyOtp.purpose === OtpPurpose.VERIFY_EMAIL) {
             // cấp token
-            await this.usersService.markEmailVerified(userAlreadyExist.id);
-            const accessToken = await this.AuthJwtService.generateAccessToken({
-                id: userAlreadyExist.dataValues.id,
+            await this.usersService.markEmailVerified(
+                userAlreadyExist.dataValues.id,
+            );
+            const { accessToken, refreshToken } = await this.login({
+                uid: userAlreadyExist.dataValues.id,
                 role: userAlreadyExist.dataValues.role,
             });
-            const refreshToken = await this.AuthJwtService.generateRefreshToken(
-                {
-                    id: userAlreadyExist.dataValues.id,
-                    role: userAlreadyExist.dataValues.role,
-                },
-            );
             return {
                 accessToken,
                 refreshToken,
@@ -133,5 +146,31 @@ export class AuthService {
         return {
             message: 'Gửi OTP thành công.',
         };
+    }
+
+    async refesh({ uid, role, jti, exp }) {
+        const now = Math.floor(Date.now() / 1000);
+        const remainingSeconds = exp - now;
+        const accessToken = await this.AuthJwtService.generateAccessToken({
+            uid,
+            role,
+        });
+        const refreshToken = await this.AuthJwtService.generateRefreshToken(
+            {
+                uid,
+                role,
+                jti,
+            },
+            remainingSeconds,
+        );
+        // update token
+        const token_hash = Helper.hashValue(refreshToken);
+        await this.authTokenService.update(
+            { token_hash },
+            uid,
+            AuthTokenType.REFRESH_TOKEN,
+            jti,
+        );
+        return { accessToken, refreshToken };
     }
 }

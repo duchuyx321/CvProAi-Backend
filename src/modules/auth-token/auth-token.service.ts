@@ -15,16 +15,23 @@ export class AuthTokenService {
         private readonly authTokenModule: typeof Auth_tokens,
     ) {}
     async create(createAuthToken: CreateAuthTokenDto) {
-        await this.authTokenModule.create(createAuthToken as any);
-        return { message: 'Tạo auth token thành công!' };
+        return await this.authTokenModule.create(createAuthToken as any);
     }
     async update(
         updateAuthToken: UpdateAuthToken,
         user_id: string,
         type: AuthTokenType,
+        jti?: string,
     ) {
+        const where = {
+            user_id,
+            type,
+        };
+        if (jti) {
+            where['id'] = jti;
+        }
         const alreadyExist = await this.authTokenModule.findOne({
-            where: { user_id, type },
+            where,
         });
 
         if (!alreadyExist)
@@ -34,7 +41,7 @@ export class AuthTokenService {
                 type,
             } as CreateAuthTokenDto);
 
-        if (type === AuthTokenType.OTP_SendMailer) {
+        if (alreadyExist && type === AuthTokenType.OTP_SendMailer) {
             const expiresAt = new Date(alreadyExist.expires_at).getTime();
             if (expiresAt > Date.now())
                 throw new BadRequestException('OTP chưa hết hạn');
@@ -45,12 +52,32 @@ export class AuthTokenService {
         });
         return;
     }
-    async verifyToken(user_id: string, type: AuthTokenType, code: string) {
+    build(
+        updateAuthToken: UpdateAuthToken,
+        user_id: string,
+        type: AuthTokenType,
+    ) {
+        return this.authTokenModule.build({
+            ...updateAuthToken,
+            user_id,
+            type,
+        } as any);
+    }
+    async verifyToken(
+        user_id: string,
+        type: AuthTokenType,
+        code: string,
+        jti?: string,
+    ) {
+        const where = {
+            user_id,
+            type,
+        };
+        if (jti) {
+            where['id'] = jti;
+        }
         const alreadyExist = await this.authTokenModule.findOne({
-            where: {
-                user_id,
-                type,
-            },
+            where,
         });
         if (!alreadyExist) throw new NotFoundException('Token Không tồn tại!');
 

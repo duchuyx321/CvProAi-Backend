@@ -16,6 +16,8 @@ import {
     MinLength,
 } from 'class-validator';
 
+export { UseRoles } from '~/common/decorators/roles.decorator';
+
 export const StringRequired = (
     name: string,
     minLength?: number,

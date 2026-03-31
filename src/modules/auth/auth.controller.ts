@@ -1,9 +1,11 @@
 import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
+
 import express from 'express';
 import { AuthService } from './auth.service';
 import { AuthJwtService } from '~/modules/auth/service/auth-jwt.service';
 import { RegisterDto } from './dto/register.dto';
-import { LocalAuthGuard } from '~/modules/auth/guards';
+import { LocalAuthGuard, RefreshJwtAuthGuard } from '~/modules/auth/guards';
 import { VerifyOTPDTO } from './dto/verify_otp.dto';
 import { SendOtpDto } from './dto/send_otp.dto';
 
@@ -13,7 +15,8 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly authJwtService: AuthJwtService,
     ) {}
-
+    // [POST] -- /api/v1/auth/login
+    @ApiOperation({ summary: 'đăng nhập' })
     @UseGuards(LocalAuthGuard)
     @Post('login')
     async login(
@@ -34,10 +37,15 @@ export class AuthController {
         };
     }
 
+    // [POST] -- /api/v1/auth/register
+    @ApiOperation({ summary: 'Đăng kí tài khoản' })
     @Post('register')
     async register(@Body() registerDto: RegisterDto) {
         return await this.authService.register(registerDto);
     }
+
+    // [POST] -- /api/v1/auth/otp/verify
+    @ApiOperation({ summary: 'check token' })
     @Post('otp/verify')
     async verifyOTP(
         @Body() verifyOtp: VerifyOTPDTO,
@@ -55,8 +63,30 @@ export class AuthController {
             data: { meta: { accessToken } },
         };
     }
+
+    // [POST] -- /api/v1/auth/otp/ressend
+    @ApiOperation({ summary: 'Gửi lại mã token' })
     @Post('otp/resend')
     async resendOTP(@Body() sendOtp: SendOtpDto) {
         return await this.authService.resendMail(sendOtp);
+    }
+
+    // [POST] -- /api/v1/auth/refresh
+    @ApiOperation({ summary: 'refresh access token' })
+    @UseGuards(RefreshJwtAuthGuard)
+    @Post('refresh')
+    async refresh(
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: express.Response,
+    ) {
+        const { accessToken, refreshToken } = await this.authService.refesh(
+            req['user'],
+        );
+        res.cookie(
+            'refreshToken',
+            refreshToken,
+            this.authJwtService.cookieOptions(),
+        );
+        return { data: { meta: { accessToken } } };
     }
 }

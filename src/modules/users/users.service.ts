@@ -117,4 +117,15 @@ export class UsersService {
 
         return { message: 'ập nhật thời gian login thành công.' };
     }
+    async updateFullName(user_id: string, full_name: string) {
+        const updated = await this.UsersModel.update(
+            { full_name },
+            { where: { id: user_id } },
+        );
+
+        if (updated[0] === 0) {
+            throw new NotFoundException('Cập nhật tên người dùng thất bại.');
+        }
+        return { message: 'Cập nhật tên người dùng thành công' };
+    }
 }

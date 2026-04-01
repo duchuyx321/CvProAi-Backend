@@ -35,7 +35,7 @@ export class User_profile extends Model<User_profile> {
         type: DataType.DATEONLY,
         allowNull: true,
     })
-    dob?: string;
+    dob?: Date;
 
     @Column({
         type: DataType.STRING(255),

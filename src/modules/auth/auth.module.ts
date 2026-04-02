@@ -15,11 +15,13 @@ import {
     RefreshJwtAuthGuard,
     JwtAuthGuard,
     RolesGuard,
+    GoogleAuthGuard,
 } from '~/modules/auth/guards';
 import {
     RefreshJwtStrategy,
     JwtStrategy,
     LocalStrategy,
+    GoogleStrategy,
 } from '~/modules/auth/strategies';
 
 import { AuthJwtService, AuthMailService } from '~/modules/auth/service';
@@ -34,6 +36,8 @@ import { AuthJwtService, AuthMailService } from '~/modules/auth/service';
         LocalAuthGuard,
         JwtAuthGuard,
         JwtStrategy,
+        GoogleAuthGuard,
+        GoogleStrategy,
         RolesGuard,
         RefreshJwtAuthGuard,
         RefreshJwtStrategy,

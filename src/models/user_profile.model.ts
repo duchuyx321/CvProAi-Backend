@@ -7,6 +7,7 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
+
 import { Users } from '~/models';
 
 @Table({ tableName: 'user_profile', timestamps: true, underscored: true })

@@ -9,18 +9,18 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import {
-    Users,
-    Cv_templates,
-    Cv_versions,
-    Cv_exports,
-    Ai_runs,
-} from '~/models';
+import { Users, Cv_templates, Cv_exports, Ai_runs } from '~/models';
 
 export enum cv_status {
     DRAFT = 'DRAFT',
     PUBLISHED = 'PUBLISHED',
     ARCHIVED = 'ARCHIVED',
+}
+
+export enum cv_visibility {
+    PRIVATE = 'PRIVATE',
+    PUBLIC = 'PUBLIC',
+    LINK = 'LINK',
 }
 
 @Table({ tableName: 'cvs', timestamps: true, underscored: true })
@@ -68,11 +68,11 @@ export class Cvs extends Model<Cvs> {
     status!: cv_status;
 
     @Column({
-        type: DataType.STRING(20),
+        type: DataType.ENUM(...Object.values(cv_visibility)),
         allowNull: false,
-        defaultValue: 'PRIVATE',
+        defaultValue: cv_visibility.PRIVATE,
     })
-    visibility!: string;
+    visibility!: cv_visibility;
 
     @Column({
         type: DataType.STRING(255),
@@ -92,9 +92,6 @@ export class Cvs extends Model<Cvs> {
 
     @BelongsTo(() => Cv_templates)
     template?: Cv_templates;
-
-    @HasMany(() => Cv_versions)
-    cv_versions?: Cv_versions[];
 
     @HasMany(() => Cv_exports)
     cv_exports?: Cv_exports[];

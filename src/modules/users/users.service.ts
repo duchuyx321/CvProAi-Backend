@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 
 import { user_status, Users } from '~/models';
+import { user_provider } from '~/models/users.model';
 import { CreateUserDto } from '~/modules/users/dto/create-user.dto';
 import { Helper } from '~/utils/helpers';
 
@@ -30,13 +31,21 @@ export class UsersService {
 
         return user;
     }
-    async findByEmail(email: string) {
+    async findByEmail(
+        email: string,
+        provider: user_provider = user_provider.LOCAL,
+    ) {
+        console.log('find', { email, provider });
         return await this.UsersModel.findOne({
-            where: { email },
+            where: { email, provider },
         });
     }
-    async validateUser(email: string, password: string) {
-        const alreadyExists = await this.findByEmail(email);
+    async validateUser(
+        email: string,
+        password: string,
+        provider: user_provider,
+    ) {
+        const alreadyExists = await this.findByEmail(email, provider);
         if (!alreadyExists)
             throw new BadRequestException(
                 'Email hoặc mật khẩu không chính xác!',
@@ -60,7 +69,11 @@ export class UsersService {
         };
     }
     async create(createUserDto: CreateUserDto) {
-        const alreadyExists = await this.findByEmail(createUserDto.email);
+        console.log('create', createUserDto);
+        const alreadyExists = await this.findByEmail(
+            createUserDto.email,
+            createUserDto.provider,
+        );
         if (alreadyExists) throw new BadRequestException('Email đã tồn tại!');
 
         const password_hash = Helper.hashValue(createUserDto.password);
@@ -116,5 +129,26 @@ export class UsersService {
             );
 
         return { message: 'ập nhật thời gian login thành công.' };
+    }
+    async validateAccountProvide(
+        email: string,
+        full_name: string,
+        provider: user_provider,
+    ) {
+        const alreadyExist = await this.findByEmail(email, provider);
+        if (!alreadyExist) {
+            const pass = Helper.generateResetPass();
+            const newUser = await this.create({
+                email,
+                full_name,
+                password: pass,
+                provider,
+            });
+            return { uid: newUser.data.id, role: newUser.data.role };
+        }
+        return {
+            uid: alreadyExist.dataValues.id,
+            role: alreadyExist.dataValues.id,
+        };
     }
 }

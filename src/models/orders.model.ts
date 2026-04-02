@@ -3,14 +3,13 @@ import {
     Column,
     DataType,
     ForeignKey,
-    HasMany,
     HasOne,
     Model,
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Payment_transactions, Order_subscriptions } from '~/models';
+import { Users, Subscriptions } from '~/models';
 
 export enum payment_status {
     PENDING = 'PENDING',
@@ -85,9 +84,6 @@ export class Orders extends Model<Orders> {
     @BelongsTo(() => Users)
     user?: Users;
 
-    @HasMany(() => Payment_transactions)
-    payment_transactions?: Payment_transactions[];
-
-    @HasOne(() => Order_subscriptions)
-    order_subscription?: Order_subscriptions;
+    @HasOne(() => Subscriptions)
+    subscription?: Subscriptions;
 }

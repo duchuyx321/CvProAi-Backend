@@ -6,9 +6,15 @@ import {
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
+
 import { Cvs } from '~/models';
 
-@Table({ tableName: 'cv_templates', timestamps: true, underscored: true })
+@Table({
+    tableName: 'cv_templates',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+})
 export class Cv_templates extends Model<Cv_templates> {
     @PrimaryKey
     @Column({
@@ -20,8 +26,8 @@ export class Cv_templates extends Model<Cv_templates> {
 
     @Column({
         type: DataType.STRING(80),
-        allowNull: false,
         unique: true,
+        allowNull: false,
     })
     code!: string;
 

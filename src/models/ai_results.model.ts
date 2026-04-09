@@ -6,12 +6,16 @@ import {
     Model,
     PrimaryKey,
     Table,
-    Unique,
 } from 'sequelize-typescript';
 
 import { Ai_runs } from '~/models';
 
-@Table({ tableName: 'ai_results', timestamps: true, underscored: true })
+@Table({
+    tableName: 'ai_results',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+})
 export class Ai_results extends Model<Ai_results> {
     @PrimaryKey
     @Column({
@@ -21,11 +25,11 @@ export class Ai_results extends Model<Ai_results> {
     })
     declare id: string;
 
-    @Unique
     @ForeignKey(() => Ai_runs)
     @Column({
         type: DataType.UUID,
         allowNull: false,
+        unique: true,
     })
     ai_run_id!: string;
 

@@ -22,13 +22,6 @@ export class Plans extends Model<Plans> {
     declare id: string;
 
     @Column({
-        type: DataType.STRING(50),
-        allowNull: false,
-        unique: true,
-    })
-    code!: string;
-
-    @Column({
         type: DataType.STRING(255),
         allowNull: false,
     })
@@ -45,34 +38,70 @@ export class Plans extends Model<Plans> {
         allowNull: false,
         defaultValue: 0,
     })
-    price_cents!: number;
+    price!: number;
 
     @Column({
         type: DataType.STRING(10),
         allowNull: false,
         defaultValue: 'VND',
     })
-    currency?: string;
+    currency!: string;
 
     @Column({
         type: DataType.STRING(20),
         allowNull: false,
         defaultValue: 'MONTH',
     })
-    interval?: string;
+    billing_cycle!: string;
 
     @Column({
-        type: DataType.JSONB,
-        allowNull: true,
+        type: DataType.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
     })
-    features?: Record<string, any>;
+    cv_limit!: number;
+
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    })
+    ai_limit!: number;
+
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    premium_template!: boolean;
+
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    remove_watermark!: boolean;
+
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    custom_domain!: boolean;
+
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    priority_support!: boolean;
 
     @Column({
         type: DataType.BOOLEAN,
         allowNull: false,
         defaultValue: true,
     })
-    is_active?: boolean;
+    is_active!: boolean;
     @Column({
         type: DataType.STRING,
         allowNull: false,

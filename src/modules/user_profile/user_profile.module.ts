@@ -5,11 +5,13 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { User_profile } from '~/models';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { UsersModule } from '~/modules/users/users.module';
+import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
 
 @Module({
     imports: [
         AuthModule,
         UsersModule,
+        CloudinaryModule,
         SequelizeModule.forFeature([User_profile]),
     ],
     controllers: [UserProfileController],

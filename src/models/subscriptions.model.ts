@@ -3,13 +3,12 @@ import {
     Column,
     DataType,
     ForeignKey,
-    HasOne,
     Model,
     PrimaryKey,
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Plans, Order_subscriptions } from '~/models';
+import { Users, Plans, Orders } from '~/models';
 
 export enum subscription_status {
     ACTIVE = 'ACTIVE',
@@ -41,6 +40,13 @@ export class Subscriptions extends Model<Subscriptions> {
         allowNull: false,
     })
     plan_id!: string;
+
+    @ForeignKey(() => Orders)
+    @Column({
+        type: DataType.UUID,
+        allowNull: false,
+    })
+    order_id!: string;
 
     @Column({
         type: DataType.ENUM(...Object.values(subscription_status)),
@@ -81,6 +87,6 @@ export class Subscriptions extends Model<Subscriptions> {
     @BelongsTo(() => Plans)
     plan?: Plans;
 
-    @HasOne(() => Order_subscriptions)
-    order_subscription?: Order_subscriptions;
+    @BelongsTo(() => Orders)
+    order?: Orders;
 }

@@ -55,7 +55,7 @@ export class AuthService {
     }
 
     async register(registerDto: RegisterDto) {
-        const newUser = await this.usersService.create(registerDto);
+        const newUser = await this.usersService.create(registerDto as any);
         // gửi mail
         const sendMailOtp = await this.sendOtp(
             newUser.data.id,
@@ -134,6 +134,7 @@ export class AuthService {
     async resendMail(sendOtpDto: SendOtpDto) {
         const userAlreadyExist = await this.usersService.findByEmail(
             sendOtpDto.email,
+            sendOtpDto.provide,
         );
         if (!userAlreadyExist)
             throw new NotFoundException('Email không tồn tại!');

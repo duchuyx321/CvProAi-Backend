@@ -6,12 +6,16 @@ import {
     Model,
     PrimaryKey,
     Table,
-    Unique,
 } from 'sequelize-typescript';
 
 import { Users } from '~/models';
 
-@Table({ tableName: 'usage_quotas', timestamps: true, underscored: true })
+@Table({
+    tableName: 'usage_quotas',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+})
 export class Usage_quotas extends Model<Usage_quotas> {
     @PrimaryKey
     @Column({
@@ -28,7 +32,6 @@ export class Usage_quotas extends Model<Usage_quotas> {
     })
     user_id!: string;
 
-    @Unique('uq_usage_quotas_user_period')
     @Column({
         type: DataType.CHAR(7),
         allowNull: false,

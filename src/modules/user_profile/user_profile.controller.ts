@@ -1,6 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Post,
+    Req,
+    UploadedFile,
+    UseGuards,
+    UseInterceptors,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { UseRoles } from '~/common/decorators';
@@ -8,13 +15,19 @@ import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
 import { UserProfileService } from './user_profile.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePassDto } from './dto/change-pass.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 
 @ApiTags('Thông tin cá nhân')
 @Controller('profile')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseRoles('USER')
 export class UserProfileController {
-    constructor(private readonly userProfileService: UserProfileService) {}
+    constructor(
+        private readonly userProfileService: UserProfileService,
+        private readonly cloudinaryService: CloudinaryService,
+    ) {}
 
     @ApiOperation({ summary: 'Lấy thông tin cá nhân.' })
     @Get()
@@ -24,14 +37,29 @@ export class UserProfileController {
 
     @ApiOperation({ summary: 'Cập nhật thông tin cá nhân.' })
     @Post('update')
+    @UseInterceptors(
+        FileInterceptor('avatar', {
+            storage: memoryStorage(),
+        }),
+    )
     async updateProfile(
         @Body() updateProfileDto: UpdateProfileDto,
+        @UploadedFile() avatar: Express.Multer.File,
         @Req() req: Request,
     ) {
-        return this.userProfileService.updateProfile(
-            req['user'] as any,
-            updateProfileDto,
-        );
+        let avatar_url = '';
+        if (avatar) {
+            const result = (await this.cloudinaryService.uploadFile(
+                avatar,
+            )) as {
+                url?: string;
+            };
+            avatar_url = result.url || '';
+        }
+        return this.userProfileService.updateProfile(req['user'] as any, {
+            ...updateProfileDto,
+            avatar_url,
+        });
     }
 
     @ApiOperation({ summary: 'Thay đổi mật khẩu.' })

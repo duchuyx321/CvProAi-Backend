@@ -8,7 +8,7 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Cvs, Cv_versions, Users } from '~/models';
+import { Cvs, Users } from '~/models';
 
 export enum export_format {
     PDF = 'PDF',
@@ -16,7 +16,12 @@ export enum export_format {
     JSON = 'JSON',
 }
 
-@Table({ tableName: 'cv_exports', timestamps: true, underscored: true })
+@Table({
+    tableName: 'cv_exports',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+})
 export class Cv_exports extends Model<Cv_exports> {
     @PrimaryKey
     @Column({
@@ -33,7 +38,6 @@ export class Cv_exports extends Model<Cv_exports> {
     })
     cv_id!: string;
 
-    @ForeignKey(() => Cv_versions)
     @Column({
         type: DataType.UUID,
         allowNull: true,
@@ -68,9 +72,6 @@ export class Cv_exports extends Model<Cv_exports> {
 
     @BelongsTo(() => Cvs)
     cv?: Cvs;
-
-    @BelongsTo(() => Cv_versions)
-    cv_version?: Cv_versions;
 
     @BelongsTo(() => Users, 'created_by')
     creator?: Users;

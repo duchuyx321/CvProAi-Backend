@@ -12,13 +12,12 @@ import * as bcrypt from 'bcryptjs';
 import {
     User_profile,
     Cvs,
-    Cv_versions,
     Ai_runs,
     Subscriptions,
     Orders,
     Usage_quotas,
-    Audit_logs,
     Auth_tokens,
+    Cv_exports,
 } from '~/models';
 
 export enum user_status {
@@ -29,6 +28,11 @@ export enum user_status {
 export enum user_role {
     ADMIN = 'ADMIN',
     USER = 'USER',
+}
+export enum user_provider {
+    LOCAL = 'LOCAL',
+    GOOGLE = 'GOOGLE',
+    FACEBOOK = 'FACEBOOK',
 }
 
 @Table({ tableName: 'users', timestamps: true, underscored: true })
@@ -43,7 +47,6 @@ export class Users extends Model<Users> {
 
     @Column({
         type: DataType.STRING(255),
-        unique: true,
         allowNull: false,
     })
     email!: string;
@@ -55,7 +58,6 @@ export class Users extends Model<Users> {
     password_hash!: string;
 
     @Column({
-        field: 'full_name',
         type: DataType.STRING(255),
         allowNull: true,
     })
@@ -70,8 +72,8 @@ export class Users extends Model<Users> {
 
     @Column({
         type: DataType.ENUM(...Object.values(user_status)),
-        defaultValue: user_status.ACTIVE,
         allowNull: false,
+        defaultValue: user_status.ACTIVE,
     })
     status!: user_status;
 
@@ -81,6 +83,13 @@ export class Users extends Model<Users> {
         defaultValue: false,
     })
     email_verified!: boolean;
+
+    @Column({
+        type: DataType.ENUM(...Object.values(user_provider)),
+        allowNull: false,
+        defaultValue: user_provider.LOCAL,
+    })
+    provider!: user_provider;
 
     @Column({
         type: DataType.DATE,
@@ -94,9 +103,6 @@ export class Users extends Model<Users> {
     @HasMany(() => Cvs)
     cvs?: Cvs[];
 
-    @HasMany(() => Cv_versions, 'created_by')
-    cv_versions?: Cv_versions[];
-
     @HasMany(() => Ai_runs)
     ai_runs?: Ai_runs[];
 
@@ -109,11 +115,11 @@ export class Users extends Model<Users> {
     @HasMany(() => Usage_quotas)
     usage_quotas?: Usage_quotas[];
 
-    @HasMany(() => Audit_logs, 'actor_user_id')
-    audit_logs?: Audit_logs[];
-
     @HasMany(() => Auth_tokens)
     auth_tokens?: Auth_tokens[];
+
+    @HasMany(() => Cv_exports, 'created_by')
+    cv_exports?: Cv_exports[];
 
     // more
     comparePassword(password: string): boolean {

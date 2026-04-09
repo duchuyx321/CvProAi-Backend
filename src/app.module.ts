@@ -6,8 +6,10 @@ import { PlansModule } from '~/modules/plans/plans.module';
 import { UsersModule } from '~/modules/users/users.module';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
-import { AuthTokenModule } from './modules/auth-token/auth-token.module';
-import { UserProfileModule } from './modules/user_profile/user_profile.module';
+import { AuthTokenModule } from '~/modules/auth-token/auth-token.module';
+import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
+import { CvsModule } from '~/modules/cvs/cvs.module';
+import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
 
 @Module({
     imports: [
@@ -24,9 +26,11 @@ import { UserProfileModule } from './modules/user_profile/user_profile.module';
         PlansModule,
         UsersModule,
         AuthModule,
+        UserProfileModule,
         CvTemplatesModule,
         AuthTokenModule,
-        UserProfileModule,
+        CloudinaryModule,
+        CvsModule,
     ],
     controllers: [],
     providers: [],

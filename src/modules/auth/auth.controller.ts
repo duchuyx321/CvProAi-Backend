@@ -1,13 +1,26 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Post,
+    Req,
+    Res,
+    UseGuards,
+} from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 
 import express from 'express';
 import { AuthService } from './auth.service';
 import { AuthJwtService } from '~/modules/auth/service/auth-jwt.service';
 import { RegisterDto } from './dto/register.dto';
-import { LocalAuthGuard, RefreshJwtAuthGuard } from '~/modules/auth/guards';
+import {
+    GoogleAuthGuard,
+    LocalAuthGuard,
+    RefreshJwtAuthGuard,
+} from '~/modules/auth/guards';
 import { VerifyOTPDTO } from './dto/verify_otp.dto';
 import { SendOtpDto } from './dto/send_otp.dto';
+import { configHTML } from '~/config/cors.config';
 
 @Controller('auth')
 export class AuthController {
@@ -88,5 +101,24 @@ export class AuthController {
             this.authJwtService.cookieOptions(),
         );
         return { data: { meta: { accessToken } } };
+    }
+    @ApiOperation({ summary: 'đăng nhập bằng gmail' })
+    @Get('google')
+    @UseGuards(GoogleAuthGuard)
+    async googleLogin() {}
+
+    @Get('google/callback')
+    @UseGuards(GoogleAuthGuard)
+    async GoogleCallback(@Req() req: Request, @Res() res: express.Response) {
+        const { accessToken, refreshToken } = await this.authService.login(
+            req['user'],
+        );
+        res.cookie(
+            'refreshToken',
+            refreshToken,
+            this.authJwtService.cookieOptions(),
+        );
+        const html = configHTML(accessToken);
+        return res.send(html);
     }
 }

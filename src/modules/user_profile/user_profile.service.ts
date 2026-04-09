@@ -19,13 +19,15 @@ export class UserProfileService {
         private readonly userService: UsersService,
     ) {}
 
-    async getMyProfile({ uid, role }) {
-        const alreadyExist = await this.userService.findById(uid, role);
+    async getMyProfile({ user_id, role }) {
+        const alreadyExist = await this.userService.findById(user_id, role);
         const planUser = alreadyExist.getUserWithoutPassword();
         // lấy profile
         const profile = await this.userProfileModel.findOne({
-            where: { user_id: uid as string },
-            attributes: ['user_id', 'createdAt', 'updatedAt'],
+            where: { user_id: user_id as string },
+            attributes: {
+                exclude: ['user_id', 'createdAt', 'updatedAt'],
+            },
         });
         return {
             message: 'Lấy profile thành công.',
@@ -39,7 +41,7 @@ export class UserProfileService {
             },
         };
     }
-    async updateProfile({ uid }, updateProfileDto: UpdateProfileDto) {
+    async updateProfile({ user_id }, updateProfileDto: UpdateProfileDto) {
         const { fullName, ...rest } = updateProfileDto;
         const isOneField = Object.values(rest).some((value) => {
             if (value === undefined || value === null) return false;
@@ -53,20 +55,20 @@ export class UserProfileService {
 
         const alreadyExist = await this.userProfileModel.findOne({
             where: {
-                user_id: uid as string,
+                user_id: user_id as string,
             },
         });
 
         if (!alreadyExist && isOneField) {
             await this.userProfileModel.create({
-                user_id: uid as string,
+                user_id: user_id as string,
                 ...rest,
             } as any);
         } else if (hasFullName) {
-            await this.userService.updateFullName(uid, fullName);
+            await this.userService.updateFullName(user_id, fullName);
         } else {
             const updated = await this.userProfileModel.update(rest as any, {
-                where: { user_id: uid as string },
+                where: { user_id: user_id as string },
             });
             if (updated[0] === 0) {
                 throw new NotFoundException(
@@ -78,12 +80,12 @@ export class UserProfileService {
             message: 'Cập nhật thông tin cá nhân thành công.',
         };
     }
-    async changePassword({ uid, role }, changePasswordDto: ChangePassDto) {
+    async changePassword({ user_id, role }, changePasswordDto: ChangePassDto) {
         if (changePasswordDto.password === changePasswordDto.newPass)
             throw new BadRequestException(
                 'Mật khẩu mới không được trùng với mật khẩu cũ',
             );
-        const alreadyExist = await this.userService.findById(uid, role);
+        const alreadyExist = await this.userService.findById(user_id, role);
         const isMatchingOldPass = alreadyExist.comparePassword(
             changePasswordDto.password,
         );
@@ -96,7 +98,7 @@ export class UserProfileService {
             );
 
         const pass_hash = Helper.hashValue(changePasswordDto.newPass);
-        await this.userService.updatePassword(uid, pass_hash);
+        await this.userService.updatePassword(user_id, pass_hash);
         return { message: 'Thay đổi mật khẩu thành công.' };
     }
 }

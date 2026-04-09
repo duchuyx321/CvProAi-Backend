@@ -1,4 +1,5 @@
-import { StringRequired } from '~/common/decorators';
+import { EnumRequired, StringRequired } from '~/common/decorators';
+import { user_provider } from '~/models/users.model';
 
 export class CreateUserDto {
     @StringRequired('Email')
@@ -7,4 +8,6 @@ export class CreateUserDto {
     password!: string;
     @StringRequired('Tên người dùng')
     full_name!: string;
+    @EnumRequired('provide', user_provider)
+    provider: user_provider = user_provider.LOCAL;
 }

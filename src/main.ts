@@ -9,9 +9,11 @@ import { TransformInterceptor } from '~/common/interceptor/response.interceptor'
 import { AllExceptionFilter } from '~/common/filter/all-exception.filter';
 import { swaggerConfig } from '~/config/swagger.config';
 import { SwaggerModule } from '@nestjs/swagger';
+import { configCors } from '~/config/cors.config';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
+    app.enableCors(configCors());
     app.use(cookieParser());
 
     app.useGlobalPipes(

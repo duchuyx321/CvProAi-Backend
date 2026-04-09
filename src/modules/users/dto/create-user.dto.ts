@@ -9,5 +9,5 @@ export class CreateUserDto {
     @StringRequired('Tên người dùng')
     full_name!: string;
     @EnumRequired('provide', user_provider)
-    provider: user_provider = user_provider.GOOGLE;
+    provider: user_provider = user_provider.LOCAL;
 }

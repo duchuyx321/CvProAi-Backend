@@ -7,6 +7,8 @@ import { UsersModule } from '~/modules/users/users.module';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 import { AuthTokenModule } from './modules/auth-token/auth-token.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { CvsModule } from './modules/cvs/cvs.module';
 
 @Module({
     imports: [
@@ -25,6 +27,8 @@ import { AuthTokenModule } from './modules/auth-token/auth-token.module';
         AuthModule,
         CvTemplatesModule,
         AuthTokenModule,
+        CloudinaryModule,
+        CvsModule,
     ],
     controllers: [],
     providers: [],

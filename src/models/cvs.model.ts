@@ -1,4 +1,6 @@
 import {
+    BeforeUpdate,
+    BeforeValidate,
     BelongsTo,
     Column,
     DataType,
@@ -10,6 +12,7 @@ import {
 } from 'sequelize-typescript';
 
 import { Users, Cv_templates, Cv_exports, Ai_runs } from '~/models';
+import { Helper } from '~/utils/helpers';
 
 export enum cv_status {
     DRAFT = 'DRAFT',
@@ -59,7 +62,11 @@ export class Cvs extends Model<Cvs> {
         defaultValue: 'vi',
     })
     language!: string;
-
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    preview_url?: string;
     @Column({
         type: DataType.ENUM(...Object.values(cv_status)),
         allowNull: false,
@@ -85,7 +92,12 @@ export class Cvs extends Model<Cvs> {
         type: DataType.JSONB,
         allowNull: true,
     })
-    meta?: Record<string, any>;
+    content?: Record<string, any>;
+    @Column({
+        type: DataType.JSONB,
+        allowNull: true,
+    })
+    custom_config?: Record<string, any>;
 
     @BelongsTo(() => Users)
     user?: Users;
@@ -98,4 +110,23 @@ export class Cvs extends Model<Cvs> {
 
     @HasMany(() => Ai_runs)
     ai_runs?: Ai_runs[];
+
+    // add slug auto
+    @BeforeValidate // gọi trước khi tạo
+    static makeSlug(newPlans: Cvs) {
+        const name = newPlans.dataValues.title;
+        if (name) {
+            const slug = Helper.makeSlugFromString(name);
+            newPlans.setDataValue('slug', slug);
+        }
+    }
+    // update
+    @BeforeUpdate // gọi trước khi update
+    static updateSlug(newPlans: Cvs) {
+        if (newPlans.changed('title')) {
+            const name = newPlans.dataValues.title;
+            const slug = Helper.makeSlugFromString(name);
+            newPlans.setDataValue('slug', slug);
+        }
+    }
 }

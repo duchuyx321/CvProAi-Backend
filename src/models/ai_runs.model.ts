@@ -9,7 +9,7 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Cvs, Ai_results } from '~/models';
+import { Users, Cvs, Ai_results, Cv_versions } from '~/models';
 
 export enum ai_run_status {
     QUEUED = 'QUEUED',
@@ -47,6 +47,7 @@ export class Ai_runs extends Model<Ai_runs> {
     })
     cv_id?: string;
 
+    @ForeignKey(() => Cv_versions)
     @Column({
         type: DataType.UUID,
         allowNull: true,
@@ -113,6 +114,9 @@ export class Ai_runs extends Model<Ai_runs> {
 
     @BelongsTo(() => Cvs)
     cv?: Cvs;
+
+    @BelongsTo(() => Cv_versions, 'version_id')
+    cv_version?: Cv_versions;
 
     @HasOne(() => Ai_results)
     ai_result?: Ai_results;

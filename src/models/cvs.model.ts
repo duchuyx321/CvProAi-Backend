@@ -11,7 +11,13 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Cv_templates, Cv_exports, Ai_runs } from '~/models';
+import {
+    Users,
+    Cv_templates,
+    Cv_exports,
+    Cv_versions,
+    Ai_runs,
+} from '~/models';
 import { Helper } from '~/utils/helpers';
 
 export enum cv_status {
@@ -107,6 +113,9 @@ export class Cvs extends Model<Cvs> {
 
     @HasMany(() => Cv_exports)
     cv_exports?: Cv_exports[];
+
+    @HasMany(() => Cv_versions)
+    cv_versions?: Cv_versions[];
 
     @HasMany(() => Ai_runs)
     ai_runs?: Ai_runs[];

@@ -33,10 +33,11 @@ export class Usage_quotas extends Model<Usage_quotas> {
     user_id!: string;
 
     @Column({
-        type: DataType.CHAR(7),
+        type: DataType.DATE,
         allowNull: false,
+        comment: 'Thời điểm hết hạn quota hiện tại',
     })
-    period_month!: string;
+    quota_end_at!: Date;
 
     @Column({
         type: DataType.INTEGER,

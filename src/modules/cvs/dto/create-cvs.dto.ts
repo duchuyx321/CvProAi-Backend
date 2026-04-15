@@ -62,7 +62,7 @@ export class CreateCVSDto {
     @StringRequired('title')
     title!: string;
     @StringNotRequired('preview_url')
-    preview_url?: string;
+    preview_url?: string = '';
     @StringNotRequired('language')
     language: string = 'vi';
     @StringNotRequired('status')
@@ -73,4 +73,5 @@ export class CreateCVSDto {
     content?: CVContent;
     @ObjectNotRequired('custom_config')
     custom_config?: Partial<CVTemplateConfig>;
+    createCVSDto: any;
 }

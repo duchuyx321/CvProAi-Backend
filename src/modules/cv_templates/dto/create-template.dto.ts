@@ -19,7 +19,7 @@ export enum layoutConfig {
  * Ví dụ: Avatar nằm bên trái, Họ tên và Headline nằm bên phải
  */
 export type FieldGroup = {
-    layout: 'ROW' | 'COLUMN'; // Sắp xếp các item bên trong theo hàng ngang hay cột dọc
+    layout: 'STACK' | 'SPLIT'; // Sắp xếp các item bên trong theo hàng dọc hay cột nang
     items: (string | FieldGroup)[]; // Chứa tên field (string) hoặc tiếp tục chứa một nhóm con (đệ quy)
 };
 
@@ -96,7 +96,7 @@ export class CreateTemplateDTO {
     @BooleanRequired('is_premium')
     is_premium: boolean = false; // Đánh dấu mẫu CV này có phải trả phí (VIP) hay không
     @StringNotRequired('preview_url')
-    preview_url?: string;
+    preview_url?: string = '';
     @ObjectRequired('config')
     config!: CVTemplateConfig; // Toàn bộ cấu hình JSON của Template
 }

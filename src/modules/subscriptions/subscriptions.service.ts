@@ -4,14 +4,14 @@ import { Op } from 'sequelize';
 
 import { Plans, Subscriptions } from '~/models';
 import { subscription_status } from '~/models/subscriptions.model';
+import { PlansService } from '../plans/plans.service';
 
 @Injectable()
 export class SubscriptionsService {
     constructor(
         @InjectModel(Subscriptions)
         private readonly subscriptionsModel: typeof Subscriptions,
-        @InjectModel(Plans)
-        private readonly plansModel: typeof Plans,
+        private readonly plansService: PlansService,
     ) {}
 
     async getSubscriptionsByUserID(user_id: string) {
@@ -42,12 +42,7 @@ export class SubscriptionsService {
             };
         }
 
-        const freePlan = await this.plansModel.findOne({
-            where: {
-                slug: 'free',
-                is_active: true,
-            },
-        });
+        const freePlan = await this.plansService.findOneBySlug('free');
 
         return {
             subscription: null,

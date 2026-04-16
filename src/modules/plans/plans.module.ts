@@ -9,5 +9,6 @@ import { AuthModule } from '../auth/auth.module';
     imports: [SequelizeModule.forFeature([Plans]), AuthModule],
     controllers: [PlansController],
     providers: [PlansService],
+    exports: [PlansService],
 })
 export class PlansModule {}

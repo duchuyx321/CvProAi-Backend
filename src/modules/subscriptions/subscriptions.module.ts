@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Plans, Subscriptions } from '~/models';
+import { Subscriptions } from '~/models';
+import { PlansModule } from '~/modules/plans/plans.module';
 
 @Module({
-    imports: [SequelizeModule.forFeature([Subscriptions, Plans])],
+    imports: [SequelizeModule.forFeature([Subscriptions]), PlansModule],
     controllers: [SubscriptionsController],
     providers: [SubscriptionsService],
     exports: [SubscriptionsService],

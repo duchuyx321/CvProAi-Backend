@@ -366,8 +366,7 @@ export class AiAnalysisService {
             jdDocument,
         );
         // cập nhật trạng thái sau khi xử lý ai
-        await this.aiRunsService.updateAiRun(aiRun.id, {
-            cv_id: cv_id ?? '',
+        const payload = {
             model:
                 result.model ??
                 this.configService.get<string>('AI_MODEL') ??
@@ -377,7 +376,11 @@ export class AiAnalysisService {
             prompt_tokens: result.usageMetadata?.promptTokenCount ?? undefined,
             status: ai_run_status.SUCCESS,
             finished_at: new Date(),
-        });
+        };
+        if (cv_id && cv_id !== '' && cv_id !== null && cv_id !== undefined) {
+            payload['cv_id'] = cv_id;
+        }
+        await this.aiRunsService.updateAiRun(aiRun.dataValues.id, payload);
         await this.aiResultsService.create({
             ai_run_id: aiRun.dataValues.id,
             ...result.parsed,

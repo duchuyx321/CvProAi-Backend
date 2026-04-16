@@ -11,6 +11,15 @@ import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
 import { CvsModule } from '~/modules/cvs/cvs.module';
 import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
 
+// import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
+import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { CvExportModule } from './modules/cv-export/cv-export.module';
+import { CvVersionModule } from './modules/cv-version/cv-version.module';
+import { AiAnalysisModule } from './modules/ai-analysis/ai-analysis.module';
+import { AiResultsModule } from './modules/ai-results/ai-results.module';
+import { AiRunsModule } from './modules/ai-runs/ai-runs.module';
+
 @Module({
     imports: [
         ConfigModule.forRoot({
@@ -31,6 +40,13 @@ import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
         AuthTokenModule,
         CloudinaryModule,
         CvsModule,
+        UsageQuotasModule,
+        SubscriptionsModule,
+        CvExportModule,
+        CvVersionModule,
+        AiAnalysisModule,
+        AiResultsModule,
+        AiRunsModule,
     ],
     controllers: [],
     providers: [],

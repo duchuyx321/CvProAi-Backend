@@ -18,6 +18,7 @@ import {
     Usage_quotas,
     Auth_tokens,
     Cv_exports,
+    Cv_versions,
 } from '~/models';
 
 export enum user_status {
@@ -120,6 +121,9 @@ export class Users extends Model<Users> {
 
     @HasMany(() => Cv_exports, 'created_by')
     cv_exports?: Cv_exports[];
+
+    @HasMany(() => Cv_versions, 'created_by')
+    cv_versions?: Cv_versions[];
 
     // more
     comparePassword(password: string): boolean {

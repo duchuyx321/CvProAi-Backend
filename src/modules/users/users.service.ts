@@ -154,12 +154,13 @@ export class UsersService {
                 full_name,
                 password: pass,
                 provider,
+                email_verified: true,
             });
             return { uid: newUser.data.id, role: newUser.data.role };
         }
         return {
             uid: alreadyExist.dataValues.id,
-            role: alreadyExist.dataValues.id,
+            role: alreadyExist.dataValues.role,
         };
     }
 }

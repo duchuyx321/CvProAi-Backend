@@ -5,20 +5,48 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Cvs } from '~/models';
-import { CreateCVSDto } from './dto/create-cvs.dto';
+import { CreateCVSDto, CVContent } from './dto/create-cvs.dto';
 import { Helper } from '~/utils/helpers';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateCVSDto } from './dto/update-cvs.dto';
 import { CvTemplatesService } from '~/modules/cv_templates/cv_templates.service';
 import { merge } from 'lodash';
+import { ExportCvsDto } from './dto/export-cvs.dto';
+import puppeteer from 'puppeteer';
+import { UsageQuotasService } from '~/modules/usage-quotas/usage-quotas.service';
+import { CvVersionService } from '../cv-version/cv-version.service';
+import { CvExportService } from '../cv-export/cv-export.service';
+import { CreateVersionDto } from '../cv-version/dto/create-version.dto';
+import { CreateExportDto } from '../cv-export/dto/create-export.dto';
+import { export_format } from '~/models/cv_exports.model';
 
 @Injectable()
 export class CvsService {
+    private readonly footerWatermarkRegex =
+        /<div\b[^>]*data-cvproai-watermark=(['"])footer\1[^>]*>[\s\S]*?<\/div>/gi;
+
     constructor(
         @InjectModel(Cvs) private readonly CvsModule: typeof Cvs,
         private readonly cloudinaryService: CloudinaryService,
         private readonly cvTemplatesService: CvTemplatesService,
+        private readonly usageQuotasService: UsageQuotasService,
+        private readonly cvVersionsService: CvVersionService,
+        private readonly cvExportService: CvExportService,
     ) {}
+
+    private buildFooterWatermark(isVisible: boolean) {
+        return `<div data-cvproai-watermark="footer" data-visible="${isVisible ? 'true' : 'false'}">© CvProAI.vn</div>`;
+    }
+
+    private syncFooterWatermark(htmlText: string, isVisible: boolean) {
+        const watermark = this.buildFooterWatermark(isVisible);
+        // eslint-disable-next-line prettier/prettier
+        const normalizedHtml = htmlText
+            .replace(this.footerWatermarkRegex, '')
+            .trim();
+
+        return `${normalizedHtml}${watermark}`;
+    }
 
     async getAllTemplateCV(user_id: string, limit: number, page: number) {
         const offset = (page - 1) * limit;
@@ -65,26 +93,23 @@ export class CvsService {
         const alreadyExist = await this.CvsModule.findOne({
             where: { user_id, slug },
         });
-
         if (!alreadyExist && !isAlreadyExist) {
             throw new NotFoundException('Không tìm thấy cv này.');
         }
 
         // 1. Lấy Template gốc
+        const cvData = alreadyExist?.get({ plain: true });
+
         const cvTemplate = await this.cvTemplatesService.getTemplateByID(
-            alreadyExist?.dataValues.template_id as string,
+            cvData?.template_id as string,
         );
 
-        const cvData = alreadyExist?.get({ plain: true });
-        const templateConfig =
-            cvTemplate.data?.dataValues?.config ||
-            cvTemplate.data?.config ||
+        const baseConfig =
+            cvTemplate?.data?.dataValues?.config ??
+            cvTemplate?.data?.config ??
             {};
-        const finalConfig = merge(
-            {},
-            cvTemplate.data?.config || {},
-            templateConfig,
-        );
+        const customConfig = cvData?.custom_config ?? {};
+        const finalConfig = merge({}, baseConfig, customConfig);
 
         // 4. Xóa custom_config gốc đi vì nó đã được "hòa tan" vào finalConfig
         delete cvData?.custom_config;
@@ -133,7 +158,7 @@ export class CvsService {
     }
     async editCv(user_id: string, cv_id: string, updateCVSDto: UpdateCVSDto) {
         try {
-            await this.getCvMeByID(user_id, cv_id);
+            const cv = await this.getCvMeByID(user_id, cv_id);
             if (updateCVSDto?.title) {
                 const slug = Helper.makeSlugFromString(updateCVSDto?.title);
                 const alreadyExists = await this.getCvMeSlug(
@@ -149,8 +174,22 @@ export class CvsService {
                     throw new BadRequestException('tiêu đề này đã tồn tại.');
                 }
             }
-            console.log(updateCVSDto);
-            const updated = await this.CvsModule.update(updateCVSDto, {
+            const oldCustomConfig =
+                cv.data.dataValues.get('custom_config') ?? {};
+            const hasNewCustomConfig =
+                updateCVSDto.custom_config &&
+                Object.keys(updateCVSDto.custom_config).length > 0;
+            const nextCustomConfig = hasNewCustomConfig
+                ? merge({}, oldCustomConfig, updateCVSDto.custom_config)
+                : oldCustomConfig;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { custom_config, ...rest } = updateCVSDto;
+            const payload: any = { ...rest };
+            if (hasNewCustomConfig) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                payload['custom_config'] = nextCustomConfig;
+            }
+            const updated = await this.CvsModule.update(payload, {
                 where: {
                     user_id,
                     id: cv_id,
@@ -173,6 +212,82 @@ export class CvsService {
                 await this.cloudinaryService.deleteMultiple(files);
             }
             throw new BadRequestException('Lưu Cv thất bại');
+        }
+    }
+
+    async exportCv(cvID: string, user_id: string, exportCvsDto: ExportCvsDto) {
+        const cv = await this.getCvMeByID(user_id, cvID);
+        // check asage-quota người dùng còn đủ không
+        const quotaLimit =
+            await this.usageQuotasService.getUsageQuotaByUserId(user_id);
+        if (
+            quotaLimit.quota.dataValues.exports_used >=
+            quotaLimit.quota.dataValues.exports_limit
+        ) {
+            throw new BadRequestException('Bạn đã hết lượt xuất file.');
+        }
+        const canRemoveWatermark = Boolean(quotaLimit.plan?.remove_watermark);
+        const htmlWithWatermark = this.syncFooterWatermark(
+            exportCvsDto.htmlText,
+            !canRemoveWatermark,
+        );
+        const resultText = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>CvProAI</title><style>${exportCvsDto.cssText}</style></head><body>${htmlWithWatermark}</body></html>`;
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+        try {
+            const page = await browser.newPage();
+
+            await page.setContent(resultText, {
+                waitUntil: 'networkidle0',
+            });
+
+            await page.emulateMediaType('screen');
+
+            const pdf = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '0',
+                    right: '0',
+                    bottom: '0',
+                    left: '0',
+                },
+            });
+            // gửi lên cloudinary
+            const uploadCloudinary: any =
+                await this.cloudinaryService.uploadFile({
+                    buffer: Buffer.from(pdf),
+                    originalname: `${cv.data.dataValues.title || 'cv'}.pdf`,
+                } as Express.Multer.File);
+            // lưu vào version
+            await this.cvVersionsService.createVersion({
+                cv_id: cvID,
+                created_by: user_id,
+                content: cv.data.dataValues.content as CVContent,
+                custom_config: cv.data.dataValues.custom_config,
+            } as CreateVersionDto);
+            // lưu vòa export history
+            await this.cvExportService.addExport({
+                created_by: user_id,
+                cv_id: cvID,
+                format: export_format.PDF,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                file_url: uploadCloudinary['url'] as string,
+            } as CreateExportDto);
+            // tăng increase usage quota
+            await this.usageQuotasService.increaseUsage(
+                user_id,
+                quotaLimit.quota.dataValues.id,
+                'exports_used',
+            );
+            return {
+                buffer: Buffer.from(pdf),
+                fileName: `${cv.data.dataValues.title || 'cv'}.pdf`,
+            };
+        } finally {
+            await browser.close();
         }
     }
 }

@@ -8,7 +8,7 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Cvs, Users } from '~/models';
+import { Cvs, Cv_versions, Users } from '~/models';
 
 export enum export_format {
     PDF = 'PDF',
@@ -38,6 +38,7 @@ export class Cv_exports extends Model<Cv_exports> {
     })
     cv_id!: string;
 
+    @ForeignKey(() => Cv_versions)
     @Column({
         type: DataType.UUID,
         allowNull: true,
@@ -57,12 +58,6 @@ export class Cv_exports extends Model<Cv_exports> {
     })
     file_url!: string;
 
-    @Column({
-        type: DataType.STRING(128),
-        allowNull: true,
-    })
-    file_hash?: string;
-
     @ForeignKey(() => Users)
     @Column({
         type: DataType.UUID,
@@ -72,6 +67,9 @@ export class Cv_exports extends Model<Cv_exports> {
 
     @BelongsTo(() => Cvs)
     cv?: Cvs;
+
+    @BelongsTo(() => Cv_versions, 'version_id')
+    cv_version?: Cv_versions;
 
     @BelongsTo(() => Users, 'created_by')
     creator?: Users;

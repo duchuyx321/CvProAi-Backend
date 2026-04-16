@@ -1,0 +1,55 @@
+import {
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/sequelize';
+import { Ai_runs } from '~/models';
+import { CreateAiRunsDto } from './dto/create-ai-run.dto';
+import { UpdateAiRunDto } from './dto/update-ai-run.dto';
+import { ai_run_status } from '~/models/ai_runs.model';
+
+@Injectable()
+export class AiRunsService {
+    constructor(
+        @InjectModel(Ai_runs) private readonly aiRunsModel: typeof Ai_runs,
+    ) {}
+    async createAiRun(createAiRunDto: CreateAiRunsDto) {
+        return await this.aiRunsModel.create(createAiRunDto as any);
+    }
+    async updateAiRun(id: string, updateAiRunDto: UpdateAiRunDto) {
+        const edited = await this.aiRunsModel.update(updateAiRunDto as any, {
+            where: { id },
+        });
+        if (edited[0] === 0) {
+            throw new InternalServerErrorException('Cập nhật ai run thất bại');
+        }
+        return edited;
+    }
+    async getAiRunById(id: string, user_id: string) {
+        const aiRun = await this.aiRunsModel.findOne({
+            where: { id, user_id },
+        });
+        if (!aiRun) {
+            throw new NotFoundException('Ai run không tồn tại');
+        }
+        if (
+            aiRun.dataValues.status === ai_run_status.QUEUED ||
+            aiRun.dataValues.status === ai_run_status.RUNNING
+        ) {
+            throw new InternalServerErrorException(
+                'Ai run không ở trạng thái chờ hoặc đang chạy',
+            );
+        }
+
+        return aiRun;
+    }
+    async getAiRuns(user_id: string, page: number, limit: number) {
+        const offset = (page - 1) * limit;
+        return await this.aiRunsModel.findAndCountAll({
+            where: { user_id },
+            offset,
+            limit,
+        });
+    }
+}

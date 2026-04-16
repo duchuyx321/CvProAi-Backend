@@ -35,6 +35,7 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 .prettierrc
+.codex
 
 # dotenv environment variable files
 .env
@@ -42,6 +43,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+*.md
 
 # temp directory
 .temp

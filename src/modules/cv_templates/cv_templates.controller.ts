@@ -64,8 +64,9 @@ export class CvTemplatesController {
             )) as {
                 url?: string;
             };
-            preview_url = result.url || '';
+            preview_url = result.url as string;
         }
+
         return await this.cvTemplatesService.addTemplate({
             ...createTemplateCvDto,
             preview_url,
@@ -92,7 +93,13 @@ export class CvTemplatesController {
             )) as {
                 url?: string;
             };
-            preview_url = result.url || '';
+            preview_url = result.url as string;
+        }
+        const payload = { ...updateTemplateDto };
+        if (preview_url) {
+            payload.preview_url = preview_url;
+        } else {
+            delete payload.preview_url;
         }
         return await this.cvTemplatesService.editTemplate(id, {
             ...updateTemplateDto,

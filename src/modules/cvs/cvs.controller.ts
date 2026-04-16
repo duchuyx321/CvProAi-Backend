@@ -7,11 +7,14 @@ import {
     Patch,
     Post,
     Query,
+    Res,
     Req,
+    StreamableFile,
     UploadedFiles,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
 import { CvsService } from './cvs.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -20,6 +23,7 @@ import { CreateCVSDto, CVContent } from './dto/create-cvs.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateCVSDto } from './dto/update-cvs.dto';
+import { ExportCvsDto } from './dto/export-cvs.dto';
 
 @ApiTags('cv cá nhân')
 @UseGuards(JwtAuthGuard)
@@ -133,19 +137,50 @@ export class CvsController {
             if (!updateCVSDto.content) {
                 updateCVSDto.content = {} as CVContent;
             }
+
             if (!updateCVSDto.content.profile_header) {
                 updateCVSDto.content.profile_header = {
                     full_name: '',
                     headline: '',
                 };
             }
+
             updateCVSDto.content.profile_header.avatar_url =
                 avatarUpload['url'];
+        } else {
+            const avatarUrl = updateCVSDto.content?.profile_header?.avatar_url;
+
+            if (avatarUrl === '' && updateCVSDto.content?.profile_header) {
+                delete updateCVSDto.content.profile_header.avatar_url;
+            }
         }
         if (thumbnailUpload) {
             updateCVSDto.preview_url = thumbnailUpload['url'];
+        } else if (updateCVSDto?.preview_url === '') {
+            delete updateCVSDto.preview_url;
         }
-
         return this.cvsService.editCv(user_id, id, updateCVSDto);
+    }
+
+    @ApiOperation({ summary: 'Xuất file pdf' })
+    @Post('export/:cvID')
+    async exportCV(
+        @Req() req: Request,
+        @Param('cvID') cvID: string,
+        @Body() exportCvsDto: ExportCvsDto,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        const result = await this.cvsService.exportCv(
+            cvID,
+            user_id,
+            exportCvsDto,
+        );
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${result.fileName}"`,
+        });
+
+        return new StreamableFile(result.buffer);
     }
 }

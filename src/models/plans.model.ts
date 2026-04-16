@@ -60,7 +60,12 @@ export class Plans extends Model<Plans> {
         defaultValue: 1,
     })
     cv_limit!: number;
-
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    })
+    export_limit!: number;
     @Column({
         type: DataType.INTEGER,
         allowNull: false,
@@ -107,6 +112,12 @@ export class Plans extends Model<Plans> {
         allowNull: false,
     })
     slug!: string;
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    view_full_ai_analysis!: boolean;
     @HasMany(() => Subscriptions)
     subscriptions?: Subscriptions[];
 

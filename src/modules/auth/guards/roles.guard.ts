@@ -24,6 +24,8 @@ export class RolesGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest();
         const user = request['user']; // THIS is what is missing
+        console.log('roles guard roles =', roles);
+        console.log('roles guard user =', user);
 
         const isPermission = roles.some((role) => {
             return role === user.role;

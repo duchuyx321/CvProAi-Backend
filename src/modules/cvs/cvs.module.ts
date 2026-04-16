@@ -22,5 +22,6 @@ import { CvExportModule } from '../cv-export/cv-export.module';
     ],
     controllers: [CvsController],
     providers: [CvsService],
+    exports: [CvsService],
 })
 export class CvsModule {}

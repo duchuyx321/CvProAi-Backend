@@ -29,7 +29,7 @@ export class UsageQuotasService {
             await this.subscriptionsService.getSubscriptionsByUserID(user_id);
 
         const ai_runs_limit = plan?.ai_limit ?? 0;
-        const exports_limit = plan?.cv_limit ?? 0;
+        const exports_limit = plan?.export_limit ?? 0;
         const quota_end_at =
             subscription?.current_period_end ?? this.getEndOfCurrentMonth(now);
 

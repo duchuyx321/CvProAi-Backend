@@ -15,6 +15,9 @@ import { UsageQuotasModule } from './modules/usage-quotas/usage-quotas.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { CvExportModule } from './modules/cv-export/cv-export.module';
 import { CvVersionModule } from './modules/cv-version/cv-version.module';
+import { AiAnalysisModule } from './modules/ai-analysis/ai-analysis.module';
+import { AiResultsModule } from './modules/ai-results/ai-results.module';
+import { AiRunsModule } from './modules/ai-runs/ai-runs.module';
 
 @Module({
     imports: [
@@ -39,6 +42,9 @@ import { CvVersionModule } from './modules/cv-version/cv-version.module';
         SubscriptionsModule,
         CvExportModule,
         CvVersionModule,
+        AiAnalysisModule,
+        AiResultsModule,
+        AiRunsModule,
     ],
     controllers: [],
     providers: [],

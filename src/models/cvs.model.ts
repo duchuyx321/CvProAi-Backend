@@ -22,8 +22,9 @@ import { Helper } from '~/utils/helpers';
 
 export enum cv_status {
     DRAFT = 'DRAFT',
-    PUBLISHED = 'PUBLISHED',
+    ACTIVE = 'ACTIVE',
     ARCHIVED = 'ARCHIVED',
+    DELETED = 'DELETED',
 }
 
 export enum cv_visibility {

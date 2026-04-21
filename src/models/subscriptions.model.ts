@@ -44,9 +44,9 @@ export class Subscriptions extends Model<Subscriptions> {
     @ForeignKey(() => Orders)
     @Column({
         type: DataType.UUID,
-        allowNull: false,
+        allowNull: true,
     })
-    order_id!: string;
+    order_id?: string;
 
     @Column({
         type: DataType.ENUM(...Object.values(subscription_status)),

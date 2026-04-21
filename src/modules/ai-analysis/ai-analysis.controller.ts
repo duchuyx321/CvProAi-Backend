@@ -109,7 +109,7 @@ export class AiAnalysisController {
         const user_id = (req['user'] as { user_id: string }).user_id;
         return this.aiAnalysisService.getAnalysisResult(user_id, ai_run_id);
     }
-    @Get()
+    @Get('results')
     async getAnalysisResults(
         @Req() req: Request,
         @Query('page') page: number = 1,

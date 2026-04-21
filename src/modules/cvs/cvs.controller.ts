@@ -33,26 +33,48 @@ export class CvsController {
         private readonly cvsService: CvsService,
         private readonly cloudinaryService: CloudinaryService,
     ) {}
+
+    // [GET] --/cvs/me
     @ApiOperation({ summary: 'Lấy danh sách cv cá nhân' })
     @Get('me')
     async getAllCvByMe(
         @Req() req: Request,
         @Query('limit') limit?: number,
         @Query('page') page?: number,
+        @Query('search') search?: string,
+        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'title',
+        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
+        @Query('is_trash') is_trash: boolean = false,
     ) {
         const user_id = (req['user'] as { user_id: string }).user_id;
-        return this.cvsService.getAllTemplateCV(
+        const allowedSortBy = ['created_at', 'updated_at', 'title'];
+        const allowedSortOrder = ['ASC', 'DESC'];
+        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
+            ? sort_by
+            : 'updated_at';
+        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
+            ? sort_order
+            : 'DESC';
+        return this.cvsService.getAllCVMe(
             user_id,
             Number(limit) || 8,
             Number(page) || 1,
+            search,
+            finalSortBy || 'updated_at',
+            finalSortOrder || 'DESC',
+            is_trash || false,
         );
     }
+
+    // [GET] --/cvs/me/:slug
     @ApiOperation({ summary: 'Xem chi tiết cv cá nhân theo slug' })
     @Get('me/:slug')
     async getCvMeBySlug(@Req() req: Request, @Param('slug') slug: string) {
         const user_id = (req['user'] as { user_id: string }).user_id;
         return this.cvsService.getCvMeSlug(user_id, slug);
     }
+
+    // [POST] --/cvs/add
     @ApiOperation({ summary: 'Tạo Cv cá nhân' })
     @Post('add')
     @UseInterceptors(
@@ -102,6 +124,7 @@ export class CvsController {
         return this.cvsService.addCv(user_id, createCVSDto);
     }
 
+    // [PATCH] --/cvs/edit/:id
     @ApiOperation({ summary: 'chỉnh sửa Cv cá nhân' })
     @Patch('edit/:id')
     @UseInterceptors(
@@ -161,7 +184,7 @@ export class CvsController {
         }
         return this.cvsService.editCv(user_id, id, updateCVSDto);
     }
-
+    // [POST] --/cvs/edit/:id
     @ApiOperation({ summary: 'Xuất file pdf' })
     @Post('export/:cvID')
     async exportCV(

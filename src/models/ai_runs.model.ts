@@ -61,10 +61,10 @@ export class Ai_runs extends Model<Ai_runs> {
     job_title?: string;
 
     @Column({
-        type: DataType.TEXT,
+        type: DataType.STRING(255),
         allowNull: true,
     })
-    job_description?: string;
+    cv_name?: string;
 
     @Column({
         type: DataType.ENUM(...Object.values(ai_run_status)),

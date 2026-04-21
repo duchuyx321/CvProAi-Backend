@@ -3,5 +3,5 @@ import { UsageQuotasService } from './usage-quotas.service';
 
 @Controller('usage-quotas')
 export class UsageQuotasController {
-  constructor(private readonly usageQuotasService: UsageQuotasService) {}
+    constructor(private readonly usageQuotasService: UsageQuotasService) {}
 }

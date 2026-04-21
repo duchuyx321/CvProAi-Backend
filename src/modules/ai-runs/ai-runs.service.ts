@@ -4,7 +4,8 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Ai_runs } from '~/models';
+import { col } from 'sequelize';
+import { Ai_results, Ai_runs } from '~/models';
 import { CreateAiRunsDto } from './dto/create-ai-run.dto';
 import { UpdateAiRunDto } from './dto/update-ai-run.dto';
 import { ai_run_status } from '~/models/ai_runs.model';
@@ -48,6 +49,23 @@ export class AiRunsService {
         const offset = (page - 1) * limit;
         return await this.aiRunsModel.findAndCountAll({
             where: { user_id },
+            attributes: [
+                'id',
+                'cv_name',
+                'job_title',
+                'status',
+                [col('ai_result.overall_score'), 'total_score'],
+            ],
+            include: [
+                {
+                    model: Ai_results,
+                    as: 'ai_result',
+                    attributes: [],
+                    required: false,
+                },
+            ],
+            order: [['created_at', 'DESC']],
+            distinct: true,
             offset,
             limit,
         });

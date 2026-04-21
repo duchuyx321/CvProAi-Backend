@@ -72,6 +72,43 @@ export class AiAnalysisService {
             .trim();
     }
 
+    private normalizeAiRunLabel(value?: string | null): string | undefined {
+        const normalized = this.normalizeText(value);
+
+        if (!normalized) {
+            return undefined;
+        }
+
+        return normalized.slice(0, 255).trim();
+    }
+
+    private getBaseFileName(fileName?: string | null): string | undefined {
+        const normalized = this.normalizeAiRunLabel(fileName);
+
+        if (!normalized) {
+            return undefined;
+        }
+
+        return this.normalizeAiRunLabel(normalized.replace(/\.[^/.]+$/, ''));
+    }
+
+    private extractJobTitleFromJdText(
+        jdText?: string | null,
+    ): string | undefined {
+        const normalized = this.normalizeText(jdText);
+
+        if (!normalized) {
+            return undefined;
+        }
+
+        const firstMeaningfulLine = normalized
+            .split('\n')
+            .map((line) => line.trim())
+            .find(Boolean);
+
+        return this.normalizeAiRunLabel(firstMeaningfulLine);
+    }
+
     private buildDocument(
         sourceType: AnalysisSourceType,
         contentMarkdown: string,
@@ -164,7 +201,9 @@ export class AiAnalysisService {
             lines.push('');
         }
 
-        return this.buildDocument('cv', lines.join('\n'));
+        return this.buildDocument('cv', lines.join('\n'), {
+            fileName: cv?.data?.dataValues?.title,
+        });
     }
 
     private buildRawTextDocument(
@@ -354,11 +393,20 @@ export class AiAnalysisService {
             this.resolveCvDocument(user_id, { cv_id, cv_file }),
             this.resolveJdDocument({ jd_text, jd_file }),
         ]);
+        const cvName =
+            this.getBaseFileName(cvDocument.fileName) ??
+            this.normalizeAiRunLabel(cvDocument.fileName);
+        const jobTitle =
+            this.extractJobTitleFromJdText(jd_text) ??
+            this.getBaseFileName(jdDocument.fileName) ??
+            this.normalizeAiRunLabel(jdDocument.fileName);
         // cập nhật trạng thái đang chờ sử lý ai
         const aiRun = await this.aiRunsService.createAiRun({
             user_id,
             status: ai_run_status.RUNNING,
             cv_id: cv_id as string,
+            cv_name: cvName,
+            job_title: jobTitle,
         });
         const result = await this.callAIApiResult(
             aiRun.dataValues.id,
@@ -377,6 +425,12 @@ export class AiAnalysisService {
             status: ai_run_status.SUCCESS,
             finished_at: new Date(),
         };
+        if (cvName) {
+            payload['cv_name'] = cvName;
+        }
+        if (jobTitle) {
+            payload['job_title'] = jobTitle;
+        }
         if (cv_id && cv_id !== '' && cv_id !== null && cv_id !== undefined) {
             payload['cv_id'] = cv_id;
         }

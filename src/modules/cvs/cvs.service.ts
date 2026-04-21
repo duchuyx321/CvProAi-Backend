@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
     BadRequestException,
     Injectable,
@@ -19,6 +20,8 @@ import { CvExportService } from '../cv-export/cv-export.service';
 import { CreateVersionDto } from '../cv-version/dto/create-version.dto';
 import { CreateExportDto } from '../cv-export/dto/create-export.dto';
 import { export_format } from '~/models/cv_exports.model';
+import { Op } from 'sequelize';
+import { cv_status } from '~/models/cvs.model';
 
 @Injectable()
 export class CvsService {
@@ -40,7 +43,6 @@ export class CvsService {
 
     private syncFooterWatermark(htmlText: string, isVisible: boolean) {
         const watermark = this.buildFooterWatermark(isVisible);
-        // eslint-disable-next-line prettier/prettier
         const normalizedHtml = htmlText
             .replace(this.footerWatermarkRegex, '')
             .trim();
@@ -48,14 +50,34 @@ export class CvsService {
         return `${normalizedHtml}${watermark}`;
     }
 
-    async getAllTemplateCV(user_id: string, limit: number, page: number) {
+    async getAllCVMe(
+        user_id: string,
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+        is_trash: boolean = false,
+    ) {
         const offset = (page - 1) * limit;
+        const where: any = { user_id };
+        if (search?.trim()) {
+            where.title = { [Op.iLike]: `%${search.trim()}%` };
+        }
+        if (is_trash) {
+            where.status = cv_status.DELETED;
+        } else {
+            where.status = {
+                [Op.ne]: cv_status.DELETED,
+            };
+        }
         const { rows, count } = await this.CvsModule.findAndCountAll({
-            where: { user_id },
-            // attributes: {
-            //     exclude: ['content', 'custom_config'],
-            // },
-            order: [['created_at', 'DESC']],
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
+            attributes: {
+                exclude: ['content', 'custom_config'],
+            },
+            order: [[sort_by, sort_order]],
             limit,
             offset,
         });
@@ -70,12 +92,22 @@ export class CvsService {
             },
         };
     }
-    async getCvMeByID(user_id: string, cv_id: string) {
+    async getCvMeByID(
+        user_id: string,
+        cv_id: string,
+        is_trash: boolean = false,
+    ) {
+        const where: any = { user_id, id: cv_id };
+        if (is_trash) {
+            where.status = cv_status.DELETED;
+        } else {
+            where.status = {
+                [Op.ne]: cv_status.DELETED,
+            };
+        }
         const alreadyExist = await this.CvsModule.findOne({
-            where: {
-                user_id,
-                id: cv_id,
-            },
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
         });
         if (!alreadyExist) {
             throw new NotFoundException('Không tìm thấy cv này.');
@@ -146,6 +178,7 @@ export class CvsService {
             await this.CvsModule.create({ user_id, ...createCVSDto } as any);
             return {
                 message: 'Lưu cv thành công',
+                data: { slug },
             };
         } catch (error) {
             console.log(error);
@@ -186,7 +219,6 @@ export class CvsService {
             const { custom_config, ...rest } = updateCVSDto;
             const payload: any = { ...rest };
             if (hasNewCustomConfig) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 payload['custom_config'] = nextCustomConfig;
             }
             const updated = await this.CvsModule.update(payload, {
@@ -273,7 +305,6 @@ export class CvsService {
                 created_by: user_id,
                 cv_id: cvID,
                 format: export_format.PDF,
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 file_url: uploadCloudinary['url'] as string,
             } as CreateExportDto);
             // tăng increase usage quota
@@ -289,5 +320,39 @@ export class CvsService {
         } finally {
             await browser.close();
         }
+    }
+    async restoreCvMe(user_id: string, cv_id: string) {
+        const cv = await this.getCvMeByID(user_id, cv_id, true);
+
+        await cv.data.update({
+            status: cv_status.DRAFT,
+        });
+
+        return {
+            message: 'Đã khôi phục cv thành công.',
+        };
+    }
+    async deleteCvMe(user_id: string, cv_id: string) {
+        const cv = await this.getCvMeByID(user_id, cv_id);
+
+        await cv.data.update({
+            status: cv_status.DELETED,
+        });
+
+        return {
+            message: 'Đã chuyển CV vào thùng rác',
+        };
+    }
+    async destroyCvMe(user_id: string, cv_id: string) {
+        const cv = await this.getCvMeByID(user_id, cv_id, true);
+        // Nếu có liên kết FK tới bảng khác thì cần kiểm tra trước
+        // ví dụ ai_runs, cv_exports...
+        // nếu chưa xử lý cascade thì destroy có thể lỗi
+
+        await cv.data.destroy();
+
+        return {
+            message: 'Đã xóa vĩnh viễn CV',
+        };
     }
 }

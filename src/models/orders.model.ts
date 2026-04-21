@@ -9,7 +9,7 @@ import {
     Table,
 } from 'sequelize-typescript';
 
-import { Users, Subscriptions } from '~/models';
+import { Users, Subscriptions, Plans, AiAddonPackages } from '~/models';
 
 export enum payment_status {
     PENDING = 'PENDING',
@@ -17,6 +17,11 @@ export enum payment_status {
     FAILED = 'FAILED',
     CANCELED = 'CANCELED',
     REFUNDED = 'REFUNDED',
+}
+
+export enum order_type {
+    SUBSCRIPTION = 'SUBSCRIPTION',
+    AI_ADDON = 'AI_ADDON',
 }
 
 @Table({ tableName: 'orders', timestamps: true, underscored: true })
@@ -37,11 +42,32 @@ export class Orders extends Model<Orders> {
     user_id!: string;
 
     @Column({
+        type: DataType.ENUM(...Object.values(order_type)),
+        allowNull: false,
+        defaultValue: order_type.SUBSCRIPTION,
+    })
+    order_type!: order_type;
+
+    @Column({
         type: DataType.STRING(64),
         allowNull: false,
         unique: true,
     })
     order_code!: string;
+
+    @ForeignKey(() => Plans)
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
+    plan_id?: string;
+
+    @ForeignKey(() => AiAddonPackages)
+    @Column({
+        type: DataType.UUID,
+        allowNull: true,
+    })
+    addon_package_id?: string;
 
     @Column({
         type: DataType.BIGINT,
@@ -70,6 +96,12 @@ export class Orders extends Model<Orders> {
     provider?: string;
 
     @Column({
+        type: DataType.STRING(100),
+        allowNull: true,
+    })
+    provider_transaction_id?: string;
+
+    @Column({
         type: DataType.TEXT,
         allowNull: true,
     })
@@ -81,8 +113,20 @@ export class Orders extends Model<Orders> {
     })
     metadata?: Record<string, any>;
 
+    @Column({
+        type: DataType.DATE,
+        allowNull: true,
+    })
+    paid_at?: Date;
+
     @BelongsTo(() => Users)
     user?: Users;
+
+    @BelongsTo(() => Plans)
+    plan?: Plans;
+
+    @BelongsTo(() => AiAddonPackages)
+    addon_package?: AiAddonPackages;
 
     @HasOne(() => Subscriptions)
     subscription?: Subscriptions;

@@ -17,11 +17,10 @@ export class CreateAiRunsDto {
     @StringNotRequired('version_id')
     version_id?: string;
 
+    @StringNotRequired('cv_name')
+    cv_name?: string;
     @StringNotRequired('job_title')
     job_title?: string;
-
-    @StringNotRequired('job_description')
-    job_description?: string;
 
     @EnumNotRequired('status', ai_run_status)
     status?: ai_run_status;

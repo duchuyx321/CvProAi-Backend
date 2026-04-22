@@ -19,6 +19,8 @@ import { CvVersionModule } from './modules/cv-version/cv-version.module';
 import { AiAnalysisModule } from './modules/ai-analysis/ai-analysis.module';
 import { AiResultsModule } from './modules/ai-results/ai-results.module';
 import { AiRunsModule } from './modules/ai-runs/ai-runs.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { AiAddonPackagesModule } from './modules/ai_addon_packages/ai_addon_packages.module';
 
 @Module({
     imports: [
@@ -47,6 +49,8 @@ import { AiRunsModule } from './modules/ai-runs/ai-runs.module';
         AiAnalysisModule,
         AiResultsModule,
         AiRunsModule,
+        PaymentsModule,
+        AiAddonPackagesModule,
     ],
     controllers: [],
     providers: [],

@@ -15,7 +15,14 @@ export class PlansService {
     constructor(
         @InjectModel(Plans) private readonly plansModel: typeof Plans,
     ) {}
-    async findAll() {
+    async findAll(
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+        is_trash: boolean = false,
+    ) {
         return this.plansModel.findAll({
             where: {
                 is_active: true,
@@ -32,6 +39,14 @@ export class PlansService {
         return await this.plansModel.findOne({
             where: { slug },
         });
+    }
+    async findOneById(id: string, is_active: boolean = true) {
+        const alreadyExists = await this.plansModel.findOne({
+            where: { id, is_active },
+        });
+        if (!alreadyExists)
+            throw new NotFoundException('Không tìm thấy gói dịch vụ.');
+        return { message: 'lấy gói thành công', data: alreadyExists };
     }
     async create(createPlans: CreatePlansDto) {
         const alreadyExists = await this.plansModel.findOne({
@@ -58,19 +73,18 @@ export class PlansService {
         return { message: 'Cập nhật gói dịch vụ thành công.' };
     }
     async delete(id: string) {
-        const alreadyExists = await this.plansModel.findByPk(id);
-        if (!alreadyExists)
-            throw new NotFoundException('Không tìm thấy gói dịch vụ.');
-
-        await alreadyExists.update({ is_active: false });
+        const alreadyExists = await this.findOneById(id);
+        await alreadyExists.data.dataValues.update({ is_active: false });
+        return { message: 'Xóa gói dịch vụ thành công.' };
+    }
+    async restore(id: string) {
+        const alreadyExists = await this.findOneById(id, false);
+        await alreadyExists.data.dataValues.update({ is_active: true });
         return { message: 'Xóa gói dịch vụ thành công.' };
     }
     async destroy(id: string) {
-        const alreadyExists = await this.plansModel.findByPk(id);
-        if (!alreadyExists)
-            throw new NotFoundException('Không tìm thấy gói dịch vụ.');
-
-        await alreadyExists.destroy();
+        const alreadyExists = await this.findOneById(id);
+        await alreadyExists.data.dataValues.destroy();
         return { message: 'Xóa gói dịch vụ thành công.' };
     }
 }

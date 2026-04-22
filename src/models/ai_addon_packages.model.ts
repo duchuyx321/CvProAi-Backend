@@ -59,13 +59,6 @@ export class AiAddonPackages extends Model<AiAddonPackages> {
     })
     is_active!: boolean;
 
-    @Column({
-        type: DataType.STRING(50),
-        allowNull: false,
-        unique: true,
-    })
-    slug!: string;
-
     @HasMany(() => Orders, {
         foreignKey: 'addon_package_id',
         sourceKey: 'id',

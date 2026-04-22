@@ -46,4 +46,6 @@ export class CreatePlansDto {
     is_active?: boolean;
     @BooleanNotRequired('view_full_ai_analysis')
     view_full_ai_analysis?: boolean;
+    @BooleanNotRequired('view_full_ai_analysis')
+    can_purchase_ai_addon?: boolean;
 }

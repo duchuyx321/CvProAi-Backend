@@ -1,5 +1,6 @@
 import { randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
+import dayjs from 'dayjs';
 
 export class Helper {
     static makeSlugFromString(text: string): string {
@@ -52,4 +53,26 @@ export class Helper {
         password: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,20}$/,
         otp: /^[A-HJ-NP-Za-km-z2-9]{6}$/,
     };
+
+    static isCheckoutExpired(created_at: Date) {
+        return dayjs().isAfter(dayjs(created_at).add(15, 'minute'));
+    }
+    static isAcceptPaymentExpired(created_at: Date) {
+        return dayjs().isAfter(dayjs(created_at).add(48, 'hour'));
+    }
+    static TransferCode(value: string): string {
+        return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    }
+    static formatOrderCodeFromTransferCode(value?: string): string | null {
+        if (!value) return null;
+
+        const match = value
+            .toUpperCase()
+            .match(/\bCVPROAI[-\s]?(SUB|ADD|BTH)[-\s]?([A-Z0-9]+)\b/);
+
+        if (!match) return null;
+
+        const [, type, code] = match;
+        return `CVPROAI-${type}-${code}`;
+    }
 }

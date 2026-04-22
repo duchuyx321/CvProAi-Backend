@@ -118,6 +118,12 @@ export class Plans extends Model<Plans> {
         defaultValue: false,
     })
     view_full_ai_analysis!: boolean;
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    })
+    can_purchase_ai_addon!: boolean;
     @HasMany(() => Subscriptions)
     subscriptions?: Subscriptions[];
 

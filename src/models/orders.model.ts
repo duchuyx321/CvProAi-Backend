@@ -22,6 +22,7 @@ export enum payment_status {
 export enum order_type {
     SUBSCRIPTION = 'SUBSCRIPTION',
     AI_ADDON = 'AI_ADDON',
+    BOTH = 'BOTH',
 }
 
 @Table({ tableName: 'orders', timestamps: true, underscored: true })

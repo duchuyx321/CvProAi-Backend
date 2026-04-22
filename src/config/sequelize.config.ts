@@ -16,6 +16,7 @@ import {
     Auth_tokens,
     Cv_exports,
     Cv_versions,
+    AiAddonPackages,
 } from '~/models';
 
 export const sequelizeConfig = (
@@ -44,5 +45,6 @@ export const sequelizeConfig = (
         Orders,
         Usage_quotas,
         Auth_tokens,
+        AiAddonPackages,
     ],
 });

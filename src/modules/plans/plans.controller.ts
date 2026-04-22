@@ -6,6 +6,7 @@ import {
     Param,
     Patch,
     Post,
+    Query,
     UseGuards,
 } from '@nestjs/common';
 import { PlansService } from './plans.service';
@@ -21,8 +22,30 @@ export class PlansController {
     // GET
     @ApiOperation({ summary: 'Lấy tất cả các gói dịch vụ' })
     @Get('all')
-    async getAllPlans() {
-        return await this.plansService.findAll();
+    async getAllPlans(
+        @Query('limit') limit?: number,
+        @Query('page') page?: number,
+        @Query('search') search?: string,
+        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'title',
+        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
+        @Query('is_trash') is_trash: boolean = false,
+    ) {
+        const allowedSortBy = ['created_at', 'updated_at', 'title'];
+        const allowedSortOrder = ['ASC', 'DESC'];
+        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
+            ? sort_by
+            : 'updated_at';
+        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
+            ? sort_order
+            : 'DESC';
+        return await this.plansService.findAll(
+            Number(limit) || 8,
+            Number(page) || 1,
+            search,
+            finalSortBy || 'updated_at',
+            finalSortOrder || 'DESC',
+            is_trash || false,
+        );
     }
 
     @ApiOperation({ summary: 'Lấy thông tin một gói dịch vụ theo slug' })
@@ -55,9 +78,15 @@ export class PlansController {
     @UseRoles('ADMIN')
     @Patch('delete/:id')
     async deletePlans(@Param('id') id: string) {
-        return this.plansService.destroy(id);
+        return this.plansService.delete(id);
     }
-
+    @ApiOperation({ summary: 'Xóa mềm gói dịch vụ (Admin only)' })
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @UseRoles('ADMIN')
+    @Patch('delete/:id')
+    async restorePlans(@Param('id') id: string) {
+        return this.plansService.restore(id);
+    }
     @ApiOperation({ summary: 'Xóa vĩnh viễn gói dịch vụ (Admin only)' })
     @UseGuards(JwtAuthGuard, RolesGuard)
     @UseRoles('ADMIN')

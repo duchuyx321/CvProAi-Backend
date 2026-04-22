@@ -8,7 +8,7 @@ export { Ai_runs } from '~/models/ai_runs.model';
 export { Ai_results } from '~/models/ai_results.model';
 export { Plans } from '~/models/plans.model';
 export { Subscriptions } from '~/models/subscriptions.model';
-export { Orders, payment_status } from '~/models/orders.model';
+export { Orders, payment_status, order_type } from '~/models/orders.model';
 export { Usage_quotas } from '~/models/usage-quotas.model';
 export { Auth_tokens } from '~/models/auth-tokens.model';
 export { AiAddonPackages } from '~/models/ai_addon_packages.model';

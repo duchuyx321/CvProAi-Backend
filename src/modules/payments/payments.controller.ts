@@ -5,6 +5,7 @@ import {
     Headers,
     Param,
     Post,
+    Query,
     Req,
     UnauthorizedException,
     UseGuards,
@@ -23,6 +24,36 @@ export class PaymentsController {
         private readonly paymentsService: PaymentsService,
         private readonly configService: ConfigService,
     ) {}
+    @ApiOperation({ summary: 'danh sách đơn hàng cá nhân' })
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getPaymentMe(
+        @Req() req: Request,
+        @Query('limit') limit?: number,
+        @Query('page') page?: number,
+        @Query('search') search?: string,
+        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'title',
+        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        const allowedSortBy = ['created_at', 'updated_at', 'title'];
+        const allowedSortOrder = ['ASC', 'DESC'];
+        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
+            ? sort_by
+            : 'updated_at';
+        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
+            ? sort_order
+            : 'DESC';
+        return this.paymentsService.getPaymentsMe(
+            user_id,
+            Number(limit) || 8,
+            Number(page) || 1,
+            search,
+            finalSortBy || 'updated_at',
+            finalSortOrder || 'DESC',
+        );
+    }
+
     @ApiOperation({ summary: 'Tạo đơn hàng' })
     @UseGuards(JwtAuthGuard)
     @Post('create')

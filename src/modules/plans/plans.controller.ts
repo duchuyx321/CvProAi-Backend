@@ -51,7 +51,7 @@ export class PlansController {
     @ApiOperation({ summary: 'Lấy thông tin một gói dịch vụ theo slug' })
     @Get('/one/:slug')
     async getPlanBySlug(@Param('slug') slug: string) {
-        return await this.plansService.findOneBySlug(slug);
+        return await this.plansService.findBySlug(slug);
     }
     // POST
     @ApiOperation({ summary: 'Tạo mới gói dịch vụ (Admin only)' })

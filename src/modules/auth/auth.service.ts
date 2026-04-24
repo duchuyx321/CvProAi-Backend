@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+    forwardRef,
+    Inject,
+    Injectable,
+    NotFoundException,
+} from '@nestjs/common';
 import { UsersService } from '~/modules/users/users.service';
 import { RegisterDto } from './dto/register.dto';
 
@@ -17,6 +22,7 @@ import { SendOtpDto } from './dto/send_otp.dto';
 @Injectable()
 export class AuthService {
     constructor(
+        @Inject(forwardRef(() => UsersService))
         private readonly usersService: UsersService,
         private readonly authTokenService: AuthTokenService,
         private readonly AuthJwtService: AuthJwtService,

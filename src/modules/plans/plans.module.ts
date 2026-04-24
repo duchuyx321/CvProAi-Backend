@@ -4,9 +4,14 @@ import { PlansController } from './plans.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { Plans } from '~/models';
 import { AuthModule } from '../auth/auth.module';
+import { AiAddonPackagesModule } from '../ai_addon_packages/ai_addon_packages.module';
 
 @Module({
-    imports: [SequelizeModule.forFeature([Plans]), AuthModule],
+    imports: [
+        SequelizeModule.forFeature([Plans]),
+        AuthModule,
+        AiAddonPackagesModule,
+    ],
     controllers: [PlansController],
     providers: [PlansService],
     exports: [PlansService],

@@ -27,7 +27,7 @@ export const configCors = (): CorsOptions => {
                 false,
             );
         },
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         credentials: true,
         allowedHeaders: ['Content-Type', 'Authorization'],
     };

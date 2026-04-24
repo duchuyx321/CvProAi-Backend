@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CvsService } from './cvs.service';
 import { CvsController } from './cvs.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
@@ -13,7 +13,7 @@ import { CvExportModule } from '../cv-export/cv-export.module';
 @Module({
     imports: [
         SequelizeModule.forFeature([Cvs, Cv_versions]),
-        AuthModule,
+        forwardRef(() => AuthModule),
         CvTemplatesModule,
         CloudinaryModule,
         UsageQuotasModule,

@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op } from 'sequelize';
 
 import { Plans, Subscriptions } from '~/models';
 import { subscription_status } from '~/models/subscriptions.model';
 import { PlansService } from '../plans/plans.service';
+import { CreateSubscriptionsDto } from './dto/create-subscriptions.dto';
+import { PlanInterval } from '../plans/dto';
 
 @Injectable()
 export class SubscriptionsService {
@@ -49,5 +51,33 @@ export class SubscriptionsService {
             plan: freePlan,
             is_free_fallback: true,
         };
+    }
+
+    async create(createSubscriptionsDto: CreateSubscriptionsDto) {
+        const { order_id, plan_id, user_id } = createSubscriptionsDto;
+        const current_period_start = new Date();
+        const plan = await this.plansService.findOneById(plan_id);
+        const plainPlan = plan.data.get({ plain: true });
+        const current_period_end = new Date(current_period_start);
+        const billingCycle = plainPlan.billing_cycle as PlanInterval;
+        switch (billingCycle) {
+            case PlanInterval.MONTH:
+                current_period_end.setDate(current_period_end.getDate() + 30);
+                break;
+
+            case PlanInterval.YEAR:
+                current_period_end.setDate(current_period_end.getDate() + 365);
+                break;
+
+            default:
+                throw new BadRequestException('Chu kỳ gói không hợp lệ');
+        }
+        return await this.subscriptionsModel.create({
+            order_id,
+            plan_id,
+            user_id,
+            current_period_start,
+            current_period_end,
+        } as any);
     }
 }

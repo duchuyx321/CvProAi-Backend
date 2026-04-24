@@ -9,11 +9,13 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Plans } from '~/models';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { Helper } from '~/utils/helpers';
+import { AiAddonPackagesService } from '../ai_addon_packages/ai_addon_packages.service';
 
 @Injectable()
 export class PlansService {
     constructor(
         @InjectModel(Plans) private readonly plansModel: typeof Plans,
+        private readonly addonSerice: AiAddonPackagesService,
     ) {}
     async findAll(
         limit: number,
@@ -39,6 +41,27 @@ export class PlansService {
         return await this.plansModel.findOne({
             where: { slug },
         });
+    }
+    async findBySlug(slug: string) {
+        const plan = await this.plansModel.findOne({
+            where: { slug },
+        });
+        if (!plan) {
+            throw new NotFoundException('Gói không tồn tại.');
+        }
+        const plainPlan = plan?.get({ plain: true });
+        let addon: any = {};
+        if (plainPlan.can_purchase_ai_addon) {
+            addon = (await this.addonSerice.getAll(10, 1)).data;
+        }
+        return {
+            message: 'lấy dữ liệu thành công.',
+            data: {
+                plan: plainPlan,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                addon,
+            },
+        };
     }
     async findOneById(id: string, is_active: boolean = true) {
         const alreadyExists = await this.plansModel.findOne({

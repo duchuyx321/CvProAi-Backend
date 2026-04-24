@@ -19,6 +19,9 @@ import { ConfigService } from '@nestjs/config';
 import { AiAddonPackagesService } from '~/modules/ai_addon_packages/ai_addon_packages.service';
 import { Helper } from '~/utils/helpers';
 import { SepayWebhookDto } from './dto/payload-payment.dto';
+import { Op } from 'sequelize';
+import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
+import { UpdateUsageQuotasDto } from '../usage-quotas/dto/update-usageQuatas.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -28,8 +31,41 @@ export class PaymentsService {
         private readonly subscriptionsService: SubscriptionsService,
         private readonly configService: ConfigService,
         private readonly aiAddonPackagesService: AiAddonPackagesService,
+        private readonly usageQuotasService: UsageQuotasService,
     ) {}
 
+    async getPaymentsMe(
+        user_id: string,
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+    ) {
+        const offset = (page - 1) * limit;
+        const where: any = { user_id };
+        if (search?.trim()) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where.order_code = { [Op.iLike]: `%${search.trim()}%` };
+        }
+        const { rows, count } = await this.OrdersModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
+            order: [[sort_by, sort_order]],
+            limit,
+            offset,
+        });
+        return {
+            message: 'Lấy danh sách payments thành công',
+            data: rows,
+            meta: {
+                page,
+                limit,
+                total_items: count,
+                total_pages: Math.ceil(count / limit),
+            },
+        };
+    }
     async create(user_id: string, createPaymentDto: CreatePaymentDto) {
         const {
             plan_id: dtoPlanId,
@@ -136,11 +172,13 @@ export class PaymentsService {
                     await this.aiAddonPackagesService.getAiAddonPackagesById(
                         dtoAddonId,
                     );
-
-                amount_cents = Number(planPayment.price) + Number(addOn.price);
-                description = `Thanh toán ${planPayment.name} + ${addOn.name}`;
+                const plainAddon = addOn.get({ plain: true });
+                amount_cents =
+                    Number(planPayment.price ?? 0) +
+                    Number(plainAddon.price ?? 0);
+                description = `Thanh toán ${planPayment.name} + ${plainAddon.name}`;
                 plan_id = planPayment.id;
-                addon_package_id = addOn.id;
+                addon_package_id = plainAddon.id;
                 break;
             }
 
@@ -207,14 +245,14 @@ export class PaymentsService {
         if (!order) {
             throw new NotFoundException('Đơn thanh toán không tồn tại');
         }
-        if (
-            order.dataValues.status !== payment_status.PENDING ||
-            Helper.isCheckoutExpired(order.createdAt)
-        ) {
-            throw new BadRequestException(
-                'Đã hết hạn hoặc không ở trang thái chờ thanh toán.',
-            );
-        }
+        // if (
+        //     order.dataValues.status !== payment_status.PENDING ||
+        //     Helper.isCheckoutExpired(order.createdAt)
+        // ) {
+        //     throw new BadRequestException(
+        //         'Đã hết hạn hoặc không ở trang thái chờ thanh toán.',
+        //     );
+        // }
         const plainOrder = order.get({ plain: true });
         const acc = this.configService.get<string>('ACCOUNT_SEPAY');
         const bank = this.configService.get<string>('BANK_SEPAY');
@@ -226,7 +264,9 @@ export class PaymentsService {
                 addon: plainOrder.addon_package,
                 acc,
                 bank,
+                order_code: plainOrder.order_code,
                 amount_cents: plainOrder.amount_cents,
+                payment_id: plainOrder.id,
                 qrCode,
             },
         };
@@ -271,6 +311,46 @@ export class PaymentsService {
                 ...payload,
             },
         });
+        // cập nhật vào subscript và quota
+        const subscription = await this.subscriptionsService.create({
+            order_id: plainOrder.id,
+            plan_id: plainOrder.plan_id as string,
+            user_id: plainOrder.user_id,
+        });
+        const quota = await this.usageQuotasService.getUsageQuotaByUserId(
+            plainOrder.user_id,
+        );
+        let ai_runs_limit = 0;
+        let exports_limit = 0;
+        if (plainOrder.plan_id) {
+            const plan = await this.plansService.findOneById(
+                plainOrder.plan_id,
+            );
+            ai_runs_limit += Number(plan.data.dataValues.ai_limit);
+            exports_limit = plan.data.dataValues.export_limit;
+        } else if (plainOrder.addon_package_id) {
+            const addon =
+                await this.aiAddonPackagesService.getAiAddonPackagesById(
+                    plainOrder.addon_package_id,
+                );
+            ai_runs_limit += Number(addon.dataValues.runs);
+        }
+        const payloadQuot: UpdateUsageQuotasDto = {
+            user_id: plainOrder.user_id,
+            quota_end_at: subscription.dataValues.current_period_end,
+            ai_runs_used: 0,
+            exports_used: 0,
+        };
+        if (ai_runs_limit !== 0) {
+            payloadQuot['ai_runs_limit'] = ai_runs_limit;
+        }
+        if (exports_limit !== 0) {
+            payloadQuot['exports_limit'] = exports_limit;
+        }
+        await this.usageQuotasService.updateUsageQuota(
+            quota.quota.dataValues.id,
+            payloadQuot,
+        );
         return {
             message: 'thanh toán đơn hàng thành công',
             data: { payment_id: plainOrder.id },

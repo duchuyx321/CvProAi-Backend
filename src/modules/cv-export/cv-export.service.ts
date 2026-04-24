@@ -11,4 +11,7 @@ export class CvExportService {
     async addExport(createExportDto: CreateExportDto) {
         return await this.cvExportModel.create(createExportDto as any);
     }
+    async countCvExportUserID(user_id: string) {
+        return this.cvExportModel.count({ where: { created_by: user_id } });
+    }
 }

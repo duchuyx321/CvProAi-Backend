@@ -8,16 +8,22 @@ import {
 import { InjectModel } from '@nestjs/sequelize';
 
 import { user_status, Users } from '~/models';
-import { user_provider } from '~/models/users.model';
+import { user_provider, user_role } from '~/models/users.model';
 import { CreateUserDto } from '~/modules/users/dto/create-user.dto';
 import { Helper } from '~/utils/helpers';
+import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
+import { CvExportService } from '../cv-export/cv-export.service';
+import { CvsService } from '../cvs/cvs.service';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectModel(Users) private readonly UsersModel: typeof Users,
+        private readonly quotaService: UsageQuotasService,
+        private readonly cvExportService: CvExportService,
+        private readonly cvsService: CvsService,
     ) {}
-    async findById(user_id: string, role: string) {
+    async findById(user_id: string, role: string = user_role.USER) {
         const user = await this.UsersModel.findOne({
             where: {
                 id: user_id,
@@ -161,6 +167,30 @@ export class UsersService {
         return {
             uid: alreadyExist.dataValues.id,
             role: alreadyExist.dataValues.role,
+        };
+    }
+
+    async dashboar(user_id) {
+        const cv = await this.cvsService.getAllCVMe(
+            user_id,
+            3,
+            1,
+            '',
+            'created_at',
+            'DESC',
+        );
+        const quota = await this.quotaService.getUsageQuotaByUserId(user_id);
+        const totalExport =
+            await this.cvExportService.countCvExportUserID(user_id);
+        return {
+            data: {
+                totalCvs: cv.meta.total_items,
+                cvs: cv.data,
+                ai_limit: quota.quota.dataValues.ai_runs_limit,
+                ai_use: quota.quota.dataValues.ai_runs_used,
+                namePlan: quota.plan?.dataValues.name,
+                totalExport,
+            },
         };
     }
 }

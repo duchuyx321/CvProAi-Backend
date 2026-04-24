@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 
 import { Cv_templates } from '~/models';
@@ -10,7 +10,7 @@ import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
 @Module({
     imports: [
         SequelizeModule.forFeature([Cv_templates]),
-        AuthModule,
+        forwardRef(() => AuthModule),
         CloudinaryModule,
     ],
     controllers: [CvTemplatesController],

@@ -47,4 +47,13 @@ export const sequelizeConfig = (
         Auth_tokens,
         AiAddonPackages,
     ],
+    dialectOptions: {
+        ssl:
+            configService.get<string>('DB_SSL') === 'true'
+                ? {
+                      require: true,
+                      rejectUnauthorized: false,
+                  }
+                : false,
+    },
 });

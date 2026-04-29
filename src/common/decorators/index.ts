@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { applyDecorators } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsBoolean,
     IsDate,
@@ -192,3 +193,20 @@ export const DateNotRequired = (name: string) =>
         IsDate({ message: `${name} phải là date!` }),
         IsOptional(),
     );
+
+export const TransformToJson = () =>
+    Transform(({ value }) => {
+        if (value === undefined || value === null || value === '') {
+            return value;
+        }
+
+        if (typeof value === 'object') {
+            return value;
+        }
+
+        try {
+            return JSON.parse(value);
+        } catch {
+            throw new Error('Dữ liệu JSON không hợp lệ.');
+        }
+    });

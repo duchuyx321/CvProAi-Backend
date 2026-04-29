@@ -5,6 +5,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { Cvs } from '~/models';
 import { CreateCVSDto, CVContent } from './dto/create-cvs.dto';
 import { Helper } from '~/utils/helpers';
@@ -20,8 +21,9 @@ import { CvExportService } from '../cv-export/cv-export.service';
 import { CreateVersionDto } from '../cv-version/dto/create-version.dto';
 import { CreateExportDto } from '../cv-export/dto/create-export.dto';
 import { export_format } from '~/models/cv_exports.model';
-import { Op } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import { cv_status } from '~/models/cvs.model';
+import { AiRunsService } from '../ai-runs/ai-runs.service';
 
 @Injectable()
 export class CvsService {
@@ -35,6 +37,8 @@ export class CvsService {
         private readonly usageQuotasService: UsageQuotasService,
         private readonly cvVersionsService: CvVersionService,
         private readonly cvExportService: CvExportService,
+        private readonly aiRunsService: AiRunsService,
+        private readonly sequelize: Sequelize,
     ) {}
 
     private buildFooterWatermark(isVisible: boolean) {
@@ -166,6 +170,14 @@ export class CvsService {
     };
     async addCv(user_id: string, createCVSDto: CreateCVSDto) {
         try {
+            const quotaLimit =
+                await this.usageQuotasService.getUsageQuotaByUserId(user_id);
+            if (
+                quotaLimit.quota.dataValues.exports_used >=
+                quotaLimit.quota.dataValues.exports_limit
+            ) {
+                throw new BadRequestException('Bạn đã hết tạo CV.');
+            }
             const slug = Helper.makeSlugFromString(createCVSDto.title);
             const alreadyExists = await this.getCvMeSlug(user_id, slug, true);
             if (alreadyExists?.data) {
@@ -175,6 +187,12 @@ export class CvsService {
                 }
                 throw new BadRequestException('tiêu đề này đã tồn tại.');
             }
+            // tăng increase usage quota
+            await this.usageQuotasService.increaseUsage(
+                user_id,
+                quotaLimit.quota.dataValues.id,
+                'cvs_used',
+            );
             await this.CvsModule.create({ user_id, ...createCVSDto } as any);
             return {
                 message: 'Lưu cv thành công',
@@ -291,7 +309,7 @@ export class CvsService {
             const uploadCloudinary: any =
                 await this.cloudinaryService.uploadFile({
                     buffer: Buffer.from(pdf),
-                    originalname: `${cv.data.dataValues.title || 'cv'}.pdf`,
+                    originalname: `${cv.data.dataValues.slug || 'cv'}.pdf`,
                 } as Express.Multer.File);
             // lưu vào version
             await this.cvVersionsService.createVersion({
@@ -315,7 +333,7 @@ export class CvsService {
             );
             return {
                 buffer: Buffer.from(pdf),
-                fileName: `${cv.data.dataValues.title || 'cv'}.pdf`,
+                fileName: `${cv.data.dataValues.slug || 'cv'}.pdf`,
             };
         } finally {
             await browser.close();
@@ -345,14 +363,19 @@ export class CvsService {
     }
     async destroyCvMe(user_id: string, cv_id: string) {
         const cv = await this.getCvMeByID(user_id, cv_id, true);
-        // Nếu có liên kết FK tới bảng khác thì cần kiểm tra trước
-        // ví dụ ai_runs, cv_exports...
-        // nếu chưa xử lý cascade thì destroy có thể lỗi
 
-        await cv.data.destroy();
+        return this.sequelize.transaction(
+            async (transaction: Transaction): Promise<{ message: string }> => {
+                await this.aiRunsService.destroyByCvId(cv_id, transaction);
+                await this.cvExportService.destroyByCvId(cv_id, transaction);
+                await this.cvVersionsService.destroyByCvId(cv_id, transaction);
 
-        return {
-            message: 'Đã xóa vĩnh viễn CV',
-        };
+                await cv.data.destroy({ transaction });
+
+                return {
+                    message: 'Đã xóa vĩnh viễn CV',
+                };
+            },
+        );
     }
 }

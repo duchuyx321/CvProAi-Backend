@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Ai_results } from '~/models';
 import { CreateAiResultsDto } from './dto/create-ai-results.dto';
+import { Transaction } from 'sequelize';
 
 type LockedMeta = {
     visible_count: number;
@@ -77,5 +78,15 @@ export class AiResultsService {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             created_at: result.dataValues.createdAt,
         };
+    }
+
+    async destroyByAiRun(aiRunIds: string[], transaction?: Transaction) {
+        await this.aiResultsModel.destroy({
+            where: {
+                ai_run_id: aiRunIds,
+            },
+            transaction,
+        });
+        return { message: 'Xóa ai kết quả phân tích ai thành công.' };
     }
 }

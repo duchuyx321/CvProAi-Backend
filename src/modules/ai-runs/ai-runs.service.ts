@@ -4,16 +4,18 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { col } from 'sequelize';
+import { col, Transaction } from 'sequelize';
 import { Ai_results, Ai_runs } from '~/models';
 import { CreateAiRunsDto } from './dto/create-ai-run.dto';
 import { UpdateAiRunDto } from './dto/update-ai-run.dto';
 import { ai_run_status } from '~/models/ai_runs.model';
+import { AiResultsService } from '../ai-results/ai-results.service';
 
 @Injectable()
 export class AiRunsService {
     constructor(
         @InjectModel(Ai_runs) private readonly aiRunsModel: typeof Ai_runs,
+        private readonly aiResultService: AiResultsService,
     ) {}
     async createAiRun(createAiRunDto: CreateAiRunsDto) {
         return await this.aiRunsModel.create(createAiRunDto as any);
@@ -69,5 +71,24 @@ export class AiRunsService {
             offset,
             limit,
         });
+    }
+
+    async destroyByCvId(cv_id: string, transaction?: Transaction) {
+        const aiRuns = await this.aiRunsModel.findAll({
+            where: { cv_id },
+            attributes: ['id'],
+            transaction,
+        });
+
+        const aiRunIds = aiRuns.map((item) => item.id);
+
+        if (aiRunIds.length > 0) {
+            await this.aiResultService.destroyByAiRun(aiRunIds, transaction);
+            await this.aiRunsModel.destroy({
+                where: { cv_id },
+                transaction,
+            });
+        }
+        return { message: 'Xóa ai kết quả phân tích ai thành công.' };
     }
 }

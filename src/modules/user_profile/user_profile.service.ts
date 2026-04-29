@@ -10,6 +10,7 @@ import { UsersService } from '~/modules/users/users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePassDto } from './dto/change-pass.dto';
 import { Helper } from '~/utils/helpers';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class UserProfileService {
@@ -17,6 +18,7 @@ export class UserProfileService {
         @InjectModel(User_profile)
         private readonly userProfileModel: typeof User_profile,
         private readonly userService: UsersService,
+        private readonly subscriptionsService: SubscriptionsService,
     ) {}
 
     async getMyProfile({ user_id, role }) {
@@ -29,12 +31,16 @@ export class UserProfileService {
                 exclude: ['user_id', 'createdAt', 'updatedAt'],
             },
         });
+        const sub = await this.subscriptionsService.getSubscriptionsByUserID(
+            planUser.id,
+        );
         return {
             message: 'Lấy profile thành công.',
             data: {
                 email: planUser.email,
                 full_name: planUser.full_name,
                 profile,
+                planCurren: sub.plan?.dataValues.id || sub.plan?.id,
                 last_login_at: planUser.last_login_at,
                 createdAt: planUser.createdAt as Date,
                 updatedAt: planUser.updatedAt as Date,

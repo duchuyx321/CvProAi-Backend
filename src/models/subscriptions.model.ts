@@ -82,11 +82,11 @@ export class Subscriptions extends Model<Subscriptions> {
     canceled_at?: Date;
 
     @BelongsTo(() => Users)
-    user?: Users;
+    declare user?: Users;
 
     @BelongsTo(() => Plans)
-    plan?: Plans;
+    declare plan?: Plans;
 
     @BelongsTo(() => Orders)
-    order?: Orders;
+    declare order?: Orders;
 }

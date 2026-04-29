@@ -133,7 +133,7 @@ export class UsageQuotasService {
     async increaseUsage(
         user_id: string,
         usageable_id: string,
-        usageable_type: 'ai_runs_used' | 'exports_used',
+        usageable_type: 'ai_runs_used' | 'exports_used' | 'cvs_used',
     ) {
         const now = new Date();
         const quota = await this.usageQuotasModel.findOne({
@@ -160,6 +160,13 @@ export class UsageQuotasService {
             quota.dataValues.exports_used >= quota.dataValues.exports_limit
         ) {
             throw new BadRequestException('Đã hết lượt export.');
+        }
+
+        if (
+            usageable_type === 'cvs_used' &&
+            quota.dataValues.exports_used >= quota.dataValues.exports_limit
+        ) {
+            throw new BadRequestException('Đã hết lượt tạo Cv ');
         }
         await quota.increment(usageable_type, { by: 1 });
         await quota.reload();

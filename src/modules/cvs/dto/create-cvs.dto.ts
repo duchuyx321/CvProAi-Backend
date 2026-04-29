@@ -2,6 +2,7 @@ import {
     ObjectNotRequired,
     StringNotRequired,
     StringRequired,
+    TransformToJson,
 } from '~/common/decorators';
 import { cv_status, cv_visibility } from '~/models/cvs.model';
 import { CVTemplateConfig } from '~/modules/cv_templates/dto/create-template.dto';
@@ -69,8 +70,12 @@ export class CreateCVSDto {
     status: cv_status = cv_status.DRAFT;
     @StringNotRequired('visibility')
     visibility: cv_visibility = cv_visibility.PRIVATE;
+
+    @TransformToJson()
     @ObjectNotRequired('content')
     content?: CVContent;
+
+    @TransformToJson()
     @ObjectNotRequired('custom_config')
     custom_config?: Partial<CVTemplateConfig>;
     createCVSDto: any;

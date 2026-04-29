@@ -9,6 +9,7 @@ import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 import { UsageQuotasModule } from '~/modules/usage-quotas/usage-quotas.module';
 import { CvVersionModule } from '../cv-version/cv-version.module';
 import { CvExportModule } from '../cv-export/cv-export.module';
+import { AiRunsModule } from '../ai-runs/ai-runs.module';
 
 @Module({
     imports: [
@@ -19,6 +20,7 @@ import { CvExportModule } from '../cv-export/cv-export.module';
         UsageQuotasModule,
         CvVersionModule,
         CvExportModule,
+        AiRunsModule,
     ],
     controllers: [CvsController],
     providers: [CvsService],

@@ -66,7 +66,19 @@ export class Usage_quotas extends Model<Usage_quotas> {
         defaultValue: 0,
     })
     exports_limit!: number;
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    })
+    cvs_used!: number;
 
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    })
+    cvs_limit!: number;
     @BelongsTo(() => Users)
-    user?: Users;
+    declare user?: Users;
 }

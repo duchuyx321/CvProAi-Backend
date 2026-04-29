@@ -17,4 +17,8 @@ export class CreateUsageQuotasDto {
     exports_used!: number;
     @NumberRequired('exports_limit')
     exports_limit!: number;
+    @NumberRequired('cvs_used')
+    cvs_used!: number;
+    @NumberRequired('cvs_limit')
+    cvs_limit!: number;
 }

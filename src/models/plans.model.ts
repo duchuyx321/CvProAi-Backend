@@ -125,7 +125,7 @@ export class Plans extends Model<Plans> {
     })
     can_purchase_ai_addon!: boolean;
     @HasMany(() => Subscriptions)
-    subscriptions?: Subscriptions[];
+    declare subscriptions?: Subscriptions[];
 
     // add slug auto
     @BeforeValidate // gọi trước khi tạo

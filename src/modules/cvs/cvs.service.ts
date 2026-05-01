@@ -158,6 +158,11 @@ export class CvsService {
             },
         };
     }
+    async getCountCvs(template_id: string) {
+        return await this.CvsModule.count({
+            where: { template_id },
+        });
+    }
     getFilesToDelete = (cv: CreateCVSDto | UpdateCVSDto): string[] => {
         const files: string[] = [];
         const avatarUrl = cv?.content?.profile_header?.avatar_url;

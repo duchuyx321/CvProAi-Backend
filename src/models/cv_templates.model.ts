@@ -55,7 +55,12 @@ export class Cv_templates extends Model<Cv_templates> {
         allowNull: true,
     })
     config?: Record<string, any>;
-
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: true,
+        defaultValue: true,
+    })
+    is_active?: boolean;
     @HasMany(() => Cvs)
     cvs?: Cvs[];
 }

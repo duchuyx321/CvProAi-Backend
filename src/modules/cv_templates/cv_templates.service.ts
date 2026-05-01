@@ -9,6 +9,7 @@ import { Cv_templates } from '~/models/cv_templates.model';
 import { CreateTemplateDTO } from './dto/create-template.dto';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateTemplateDto } from './dto/update-template.dto';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class CvTemplatesService {
@@ -17,16 +18,34 @@ export class CvTemplatesService {
         private readonly cvTemplatesModel: typeof Cv_templates,
         private readonly cloudinaryService: CloudinaryService,
     ) {}
-    async getAllTemplate(limit: number = 8, page: number = 1) {
+    async getAllTemplate(
+        limit: number = 8,
+        page: number = 1,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' | 'name' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+        is_active?: boolean,
+    ) {
         const offset = (page - 1) * limit;
+        const where: Record<string, any> = {};
+        if (search?.trim()) {
+            where.name = {
+                [Op.iLike]: `%${search}%`,
+            };
+        }
+        if (typeof is_active === 'boolean') {
+            where.is_active = is_active;
+        }
         const { rows, count } = await this.cvTemplatesModel.findAndCountAll({
+            where,
             attributes: {
                 exclude: ['config'],
             },
-            order: [['created_at', 'DESC']],
+            order: [[sort_by, sort_order]],
             limit,
             offset,
         });
+
         return {
             message: 'Lấy danh sách mẫu cv thành công',
             data: rows,
@@ -38,12 +57,19 @@ export class CvTemplatesService {
             },
         };
     }
-    async getTemplateByCode(code: string, isAlreadyExsist: boolean = true) {
-        console.log(code);
+    async getTemplateByCode(
+        code: string,
+        is_active?: boolean,
+        isAlreadyExist: boolean = true,
+    ) {
+        const where: Record<string, any> = { code };
+        if (typeof is_active === 'boolean') {
+            where.is_active = is_active;
+        }
         const template = await this.cvTemplatesModel.findOne({
-            where: { code },
+            where,
         });
-        if (!template && isAlreadyExsist)
+        if (!template && isAlreadyExist)
             throw new NotFoundException('Không tìm thấy mẫu cv');
         return {
             message: 'Lấy mẫu cv thành công',
@@ -90,7 +116,6 @@ export class CvTemplatesService {
             if (updateTemplateCvDto?.code) {
                 const checkCode = await this.getTemplateByCode(
                     updateTemplateCvDto.code,
-                    false,
                 );
                 if (checkCode.data && checkCode.data.id !== id) {
                     if (updateTemplateCvDto.preview_url) {
@@ -125,5 +150,29 @@ export class CvTemplatesService {
             }
             throw new InternalServerErrorException('Sửa mẫu cv thất bại');
         }
+    }
+    async disableTemplate(template_id: string) {
+        const template = await this.getTemplateByID(template_id);
+
+        await template.data.update({
+            is_active: false,
+        });
+        return { message: 'Khóa mẫu cv thành công' };
+    }
+    async restoreTemplate(template_id: string) {
+        const template = await this.getTemplateByID(template_id);
+
+        await template.data.update({
+            is_active: true,
+        });
+        return { message: 'Mở khóa mẫu cv thành công' };
+    }
+    async destroyTemplate(template_id: string) {
+        const template = await this.getTemplateByID(template_id);
+        if (template.data.preview_url) {
+            await this.cloudinaryService.deleteByUrl(template.data.preview_url);
+        }
+        await template.data.destroy();
+        return { message: 'Xóa vĩnh viễn CV thành công' };
     }
 }

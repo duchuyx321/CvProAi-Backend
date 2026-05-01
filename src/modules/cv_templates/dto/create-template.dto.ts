@@ -5,27 +5,17 @@ import {
     StringRequired,
 } from '~/common/decorators';
 
-/**
- * Định nghĩa các kiểu bố cục tổng thể của trang CV
- */
 export enum layoutConfig {
     STACK = 'STACK', // Các phần xếp chồng lên nhau từ trên xuống dưới (1 cột)
     SPLIT = 'SPLIT', // Chia trang thành các cột dọc (thường là Sidebar và Main Content)
     BANNER_SPLIT = 'BANNER_SPLIT', // Có một banner lớn ở trên đầu, phía dưới chia cột
 }
 
-/**
- * Cấu trúc nhóm các trường thông tin (Dùng để xử lý layout phức tạp bên trong 1 section)
- * Ví dụ: Avatar nằm bên trái, Họ tên và Headline nằm bên phải
- */
 export type FieldGroup = {
     layout: 'STACK' | 'SPLIT'; // Sắp xếp các item bên trong theo hàng dọc hay cột nang
     items: (string | FieldGroup)[]; // Chứa tên field (string) hoặc tiếp tục chứa một nhóm con (đệ quy)
 };
 
-/**
- * Các loại Section (Phần nội dung) có trong một mẫu CV
- */
 export enum SectionType {
     PROFILE = 'profile_header', // Phần đầu trang: Ảnh, tên, vị trí
     CONTACT = 'CONTACT', // Thông tin liên hệ: Email, Số điện thoại, Địa chỉ
@@ -96,7 +86,9 @@ export class CreateTemplateDTO {
     @BooleanRequired('is_premium')
     is_premium: boolean = false; // Đánh dấu mẫu CV này có phải trả phí (VIP) hay không
     @StringNotRequired('preview_url')
-    preview_url?: string = '';
+    preview_url?: string;
     @ObjectRequired('config')
     config!: CVTemplateConfig; // Toàn bộ cấu hình JSON của Template
+    @BooleanRequired('is_active')
+    is_active: boolean = true;
 }

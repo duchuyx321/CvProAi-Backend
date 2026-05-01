@@ -14,11 +14,12 @@ import { UseRoles } from '~/common/decorators';
 import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
 import { AdminPlansService } from './admin-plans.service';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
+import { user_role } from '~/models';
 
 @ApiTags('Quản lý gói dịch vụ admin')
 @Controller('admin/plans')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseRoles('ADMIN')
+@UseRoles(user_role.ADMIN)
 export class AdminPlansController {
     constructor(private readonly adminPlansService: AdminPlansService) {}
     // GET

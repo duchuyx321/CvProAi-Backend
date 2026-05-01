@@ -8,9 +8,21 @@ import { AdminPlansService } from './plans/admin-plans.service';
 import { PlansModule } from '~/modules/plans/plans.module';
 import { SubscriptionsModule } from '~/modules/subscriptions/subscriptions.module';
 import { PaymentsModule } from '~/modules/payments/payments.module';
+import { UsersModule } from '~/modules/users/users.module';
+import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
+import { CvsModule } from '~/modules/cvs/cvs.module';
+import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 
 @Module({
-    imports: [PlansModule, SubscriptionsModule, PaymentsModule],
+    imports: [
+        PlansModule,
+        SubscriptionsModule,
+        PaymentsModule,
+        UsersModule,
+        CloudinaryModule,
+        CvTemplatesModule,
+        CvsModule,
+    ],
     controllers: [
         AdminUsersController,
         AdminCvTemplatesController,

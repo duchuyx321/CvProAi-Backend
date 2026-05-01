@@ -20,5 +20,6 @@ import { UsageQuotasModule } from '../usage-quotas/usage-quotas.module';
     ],
     controllers: [PaymentsController],
     providers: [PaymentsService],
+    exports: [PaymentsService],
 })
 export class PaymentsModule {}

@@ -21,6 +21,7 @@ import { AiResultsModule } from './modules/ai-results/ai-results.module';
 import { AiRunsModule } from './modules/ai-runs/ai-runs.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AiAddonPackagesModule } from './modules/ai_addon_packages/ai_addon_packages.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
     imports: [
@@ -51,6 +52,7 @@ import { AiAddonPackagesModule } from './modules/ai_addon_packages/ai_addon_pack
         AiRunsModule,
         PaymentsModule,
         AiAddonPackagesModule,
+        AdminModule,
     ],
     controllers: [],
     providers: [],

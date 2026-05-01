@@ -80,4 +80,12 @@ export class SubscriptionsService {
             current_period_end,
         } as any);
     }
+
+    async countSubscriptions(plan_id: string) {
+        return await this.subscriptionsModel.count({
+            where: {
+                plan_id,
+            },
+        });
+    }
 }

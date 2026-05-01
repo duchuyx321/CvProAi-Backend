@@ -10,6 +10,7 @@ import { Plans } from '~/models';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { Helper } from '~/utils/helpers';
 import { AiAddonPackagesService } from '../ai_addon_packages/ai_addon_packages.service';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class PlansService {
@@ -21,21 +22,43 @@ export class PlansService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_by: 'created_at' | 'updated_at' | 'name' = 'updated_at',
         sort_order: 'ASC' | 'DESC' = 'DESC',
-        is_trash: boolean = false,
+        is_active?: boolean,
     ) {
-        return this.plansModel.findAll({
-            where: {
-                is_active: true,
-            },
-            // sắp xếp
-            order: [['createdAt', 'ASC']],
-            // lọc trường cần lấy
+        const offset = (page - 1) * limit;
+        const where: any = {};
+
+        if (search?.trim()) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where.name = {
+                [Op.iLike]: `%${search.trim()}%`,
+            };
+        }
+        if (typeof is_active === 'boolean') {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where.is_active = is_active;
+        }
+        const { rows, count } = await this.plansModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
+            order: [[sort_by, sort_order]],
+            limit,
+            offset,
             attributes: {
-                exclude: ['createdAt', 'updatedAt'], // loại bỏ
+                exclude: ['created_at', 'updated_at'],
             },
         });
+        return {
+            message: 'Lấy danh sách gói dịch vụ thành công',
+            data: rows,
+            meta: {
+                page,
+                limit,
+                total_items: count,
+                total_pages: Math.ceil(count / limit),
+            },
+        };
     }
     async findOneBySlug(slug: string) {
         return await this.plansModel.findOne({
@@ -95,15 +118,15 @@ export class PlansService {
             );
         return { message: 'Cập nhật gói dịch vụ thành công.' };
     }
-    async delete(id: string) {
+    async disable(id: string) {
         const alreadyExists = await this.findOneById(id);
         await alreadyExists.data.dataValues.update({ is_active: false });
-        return { message: 'Xóa gói dịch vụ thành công.' };
+        return { message: 'Tắt gói dịch vụ thành công.' };
     }
     async restore(id: string) {
         const alreadyExists = await this.findOneById(id, false);
         await alreadyExists.data.dataValues.update({ is_active: true });
-        return { message: 'Xóa gói dịch vụ thành công.' };
+        return { message: 'Tắt gói dịch vụ thành công.' };
     }
     async destroy(id: string) {
         const alreadyExists = await this.findOneById(id);

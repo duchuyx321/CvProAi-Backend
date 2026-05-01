@@ -368,4 +368,11 @@ export class PaymentsService {
             },
         };
     }
+    async countOrders(plan_id: string) {
+        return await this.OrdersModel.count({
+            where: {
+                plan_id,
+            },
+        });
+    }
 }

@@ -23,7 +23,7 @@ import { CreateTemplateDTO } from '~/modules/cv_templates/dto/create-template.dt
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateTemplateDto } from '~/modules/cv_templates/dto/update-template.dto';
 
-@ApiTags('Quản lý mẫu Cv')
+@ApiTags('Admin - Quản lý mẫu Cv')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseRoles(user_role.ADMIN)
 @Controller('admin/cv-templates')

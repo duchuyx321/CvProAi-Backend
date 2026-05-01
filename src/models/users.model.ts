@@ -99,31 +99,31 @@ export class Users extends Model<Users> {
     last_login_at?: Date;
 
     @HasOne(() => User_profile)
-    user_profile?: User_profile;
+    declare user_profile?: User_profile;
 
     @HasMany(() => Cvs)
-    cvs?: Cvs[];
+    declare cvs?: Cvs[];
 
     @HasMany(() => Ai_runs)
-    ai_runs?: Ai_runs[];
+    declare ai_runs?: Ai_runs[];
 
     @HasMany(() => Subscriptions)
-    subscriptions?: Subscriptions[];
+    declare subscriptions?: Subscriptions[];
 
     @HasMany(() => Orders)
-    orders?: Orders[];
+    declare orders?: Orders[];
 
     @HasMany(() => Usage_quotas)
-    usage_quotas?: Usage_quotas[];
+    declare usage_quotas?: Usage_quotas[];
 
     @HasMany(() => Auth_tokens)
-    auth_tokens?: Auth_tokens[];
+    declare auth_tokens?: Auth_tokens[];
 
     @HasMany(() => Cv_exports, 'created_by')
-    cv_exports?: Cv_exports[];
+    declare cv_exports?: Cv_exports[];
 
     @HasMany(() => Cv_versions, 'created_by')
-    cv_versions?: Cv_versions[];
+    declare cv_versions?: Cv_versions[];
 
     // more
     comparePassword(password: string): boolean {

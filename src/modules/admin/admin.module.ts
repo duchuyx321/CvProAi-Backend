@@ -12,6 +12,7 @@ import { UsersModule } from '~/modules/users/users.module';
 import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
 import { CvsModule } from '~/modules/cvs/cvs.module';
 import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
+import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
 
 @Module({
     imports: [
@@ -19,6 +20,7 @@ import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
         SubscriptionsModule,
         PaymentsModule,
         UsersModule,
+        UserProfileModule,
         CloudinaryModule,
         CvTemplatesModule,
         CvsModule,

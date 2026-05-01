@@ -2,7 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Users } from '~/models';
+import { Usage_quotas, User_profile, Users } from '~/models';
 import { AuthModule } from '../auth/auth.module';
 import { UsageQuotasModule } from '../usage-quotas/usage-quotas.module';
 import { CvExportModule } from '../cv-export/cv-export.module';
@@ -10,7 +10,7 @@ import { CvsModule } from '../cvs/cvs.module';
 
 @Module({
     imports: [
-        SequelizeModule.forFeature([Users]),
+        SequelizeModule.forFeature([Users, User_profile, Usage_quotas]),
         forwardRef(() => AuthModule),
         UsageQuotasModule,
         CvExportModule,

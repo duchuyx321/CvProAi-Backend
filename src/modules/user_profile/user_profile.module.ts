@@ -18,5 +18,6 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     ],
     controllers: [UserProfileController],
     providers: [UserProfileService],
+    exports: [UserProfileService],
 })
 export class UserProfileModule {}

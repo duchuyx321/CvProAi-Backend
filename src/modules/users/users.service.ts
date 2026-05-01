@@ -7,13 +7,14 @@ import {
 
 import { InjectModel } from '@nestjs/sequelize';
 
-import { user_status, Users } from '~/models';
+import { Usage_quotas, User_profile, user_status, Users } from '~/models';
 import { user_provider, user_role } from '~/models/users.model';
 import { CreateUserDto } from '~/modules/users/dto/create-user.dto';
 import { Helper } from '~/utils/helpers';
 import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
 import { CvExportService } from '../cv-export/cv-export.service';
 import { CvsService } from '../cvs/cvs.service';
+import { Op } from 'sequelize';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,86 @@ export class UsersService {
         private readonly cvExportService: CvExportService,
         private readonly cvsService: CvsService,
     ) {}
+    async findAllUser(
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+        user_status?: user_status,
+    ) {
+        const offset = (page - 1) * limit;
+        const where: any = {};
+        if (search?.trim()) {
+            const keyword = `%${search.trim()}%`;
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where[Op.or] = [
+                { full_name: { [Op.like]: keyword } },
+                { email: { [Op.like]: keyword } },
+            ];
+        }
+        if (user_status?.trim()) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where.status = user_status;
+        }
+        const { rows, count } = await this.UsersModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
+            include: [
+                {
+                    model: User_profile,
+                },
+                {
+                    model: Usage_quotas,
+                    attributes: { exclude: ['created_at', 'updated_at'] },
+                },
+            ],
+            attributes: {
+                exclude: ['password_hash'],
+            },
+            limit,
+            offset,
+            order: [[sort_by, sort_order]],
+        });
+        return {
+            message: 'Lấy danh sách người dùng',
+            data: rows ?? [],
+            meta: {
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
+            },
+        };
+    }
+    async AdminFindById(user_id: string) {
+        const user = await this.UsersModel.findOne({
+            where: {
+                id: user_id,
+            },
+            include: [
+                {
+                    model: User_profile,
+                },
+                {
+                    model: Usage_quotas,
+                    attributes: { exclude: ['created_at', 'updated_at'] },
+                },
+            ],
+            attributes: {
+                exclude: ['password_hash'],
+            },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thầy người dùng.');
+        }
+        return {
+            message: 'Lấy thông tin người dùng thành công',
+            data: user,
+        };
+    }
     async findById(user_id: string, role: string = user_role.USER) {
         const user = await this.UsersModel.findOne({
             where: {
@@ -194,5 +275,54 @@ export class UsersService {
                 totalExport,
             },
         };
+    }
+
+    async bannedUser(user_id: string) {
+        const user = await this.UsersModel.findOne({
+            where: { id: user_id, status: user_status.ACTIVE },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thấy người dùng.');
+        }
+        const updated = await user.update(
+            { status: user_status.BANNED },
+            { where: { id: user_id } },
+        );
+        if (updated[0] === 0)
+            throw new BadRequestException('Banned user không thành công.');
+
+        return { message: 'Banned user thành công.' };
+    }
+    async disBannedUser(user_id: string) {
+        const user = await this.UsersModel.findOne({
+            where: { id: user_id, status: user_status.BANNED },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thấy người dùng.');
+        }
+        const updated = await user.update(
+            { status: user_status.ACTIVE },
+            { where: { id: user_id } },
+        );
+        if (updated[0] === 0)
+            throw new BadRequestException('Mở banned user không thành công.');
+
+        return { message: 'Mở banned user thành công.' };
+    }
+    async deleteUser(user_id: string) {
+        const user = await this.UsersModel.findOne({
+            where: { id: user_id },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thấy người dùng.');
+        }
+        const updated = await user.update(
+            { status: user_status.DELETED },
+            { where: { id: user_id } },
+        );
+        if (updated[0] === 0)
+            throw new BadRequestException('Xóa người dùng không thành công.');
+
+        return { message: 'Xóa người dùng thành công.' };
     }
 }

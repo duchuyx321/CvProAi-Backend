@@ -163,6 +163,41 @@ export class CvsService {
             where: { template_id },
         });
     }
+    async AdminCountCvs(fromDate: Date, toDate: Date) {
+        const durationMs = toDate.getTime() - fromDate.getTime();
+        const previousFromDate = new Date(fromDate.getTime() - durationMs);
+        const previousToExclusive = fromDate;
+
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const previousDateWhere = {
+            [Op.gte]: previousFromDate,
+            [Op.lt]: previousToExclusive,
+        };
+        const [currentCvs, previousCvs] = await Promise.all([
+            this.CvsModule.count({
+                where: {
+                    createdAt: currentDateWhere,
+                },
+            }),
+            this.CvsModule.count({
+                where: {
+                    createdAt: previousDateWhere,
+                },
+            }),
+        ]);
+        const growth_percent = Helper.calculateGrowthPercent(
+            currentCvs,
+            previousCvs,
+        );
+        return {
+            value: currentCvs,
+            growth_percent,
+        };
+    }
     getFilesToDelete = (cv: CreateCVSDto | UpdateCVSDto): string[] => {
         const files: string[] = [];
         const avatarUrl = cv?.content?.profile_header?.avatar_url;

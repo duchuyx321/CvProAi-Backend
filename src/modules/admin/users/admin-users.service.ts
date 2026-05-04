@@ -8,7 +8,7 @@ export class AdminUsersService {
         limit: number = 8,
         page: number = 1,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
     ) {
         limit = Math.min(Math.max(Number(limit) || 8, 1), 20);

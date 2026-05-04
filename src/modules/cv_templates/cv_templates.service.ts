@@ -22,7 +22,7 @@ export class CvTemplatesService {
         limit: number = 8,
         page: number = 1,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'name' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
         is_active?: boolean,
     ) {

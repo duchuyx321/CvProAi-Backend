@@ -15,7 +15,7 @@ export class AdminPlansService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'name' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
     ) {
         return await this.plansService.findAll(

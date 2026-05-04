@@ -29,14 +29,15 @@ export class AdminPlansController {
         @Query('limit') limit?: number,
         @Query('page') page?: number,
         @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'name',
+        @Query('sort_by')
+        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         @Query('sort_order') sort_order?: 'ASC' | 'DESC',
     ) {
-        const allowedSortBy = ['created_at', 'updated_at', 'name'];
+        const allowedSortBy = ['createdAt', 'updatedAt', 'name'];
         const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
+        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
             ? sort_by
-            : 'updated_at';
+            : 'updatedAt';
         const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
             ? sort_order
             : 'DESC';
@@ -44,7 +45,7 @@ export class AdminPlansController {
             Number(limit) || 8,
             Number(page) || 1,
             search,
-            finalSortBy || 'updated_at',
+            finalSortBy || 'updatedAt',
             finalSortOrder || 'DESC',
         );
     }

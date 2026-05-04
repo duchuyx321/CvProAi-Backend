@@ -4,12 +4,13 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { col, Transaction } from 'sequelize';
+import { col, Op, Transaction } from 'sequelize';
 import { Ai_results, Ai_runs } from '~/models';
 import { CreateAiRunsDto } from './dto/create-ai-run.dto';
 import { UpdateAiRunDto } from './dto/update-ai-run.dto';
 import { ai_run_status } from '~/models/ai_runs.model';
 import { AiResultsService } from '../ai-results/ai-results.service';
+import { Helper } from '~/utils/helpers';
 
 @Injectable()
 export class AiRunsService {
@@ -17,6 +18,39 @@ export class AiRunsService {
         @InjectModel(Ai_runs) private readonly aiRunsModel: typeof Ai_runs,
         private readonly aiResultService: AiResultsService,
     ) {}
+
+    async AdminCountAiRuns(fromDate: Date, toDate: Date) {
+        const durationMs = toDate.getTime() - fromDate.getTime();
+        const previousFromDate = new Date(fromDate.getTime() - durationMs);
+        const previousToExclusive = fromDate;
+
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const previousDateWhere = {
+            [Op.gte]: previousFromDate,
+            [Op.lt]: previousToExclusive,
+        };
+        const [current, previous] = await Promise.all([
+            this.aiRunsModel.count({
+                where: {
+                    createdAt: currentDateWhere,
+                },
+            }),
+            this.aiRunsModel.count({
+                where: {
+                    createdAt: previousDateWhere,
+                },
+            }),
+        ]);
+        const growth_percent = Helper.calculateGrowthPercent(current, previous);
+        return {
+            value: current,
+            growth_percent,
+        };
+    }
     async createAiRun(createAiRunDto: CreateAiRunsDto) {
         return await this.aiRunsModel.create(createAiRunDto as any);
     }

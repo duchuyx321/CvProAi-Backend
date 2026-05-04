@@ -11,6 +11,7 @@ import {
     Orders,
     payment_status,
     Plans,
+    Users,
 } from '~/models';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PlansService } from '~/modules/plans/plans.service';
@@ -22,6 +23,7 @@ import { SepayWebhookDto } from './dto/payload-payment.dto';
 import { Op } from 'sequelize';
 import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
 import { UpdateUsageQuotasDto } from '../usage-quotas/dto/update-usageQuatas.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class PaymentsService {
@@ -32,6 +34,7 @@ export class PaymentsService {
         private readonly configService: ConfigService,
         private readonly aiAddonPackagesService: AiAddonPackagesService,
         private readonly usageQuotasService: UsageQuotasService,
+        private readonly usersService: UsersService,
     ) {}
 
     async getPaymentsMe(
@@ -43,27 +46,277 @@ export class PaymentsService {
         sort_order: 'ASC' | 'DESC' = 'DESC',
     ) {
         const offset = (page - 1) * limit;
-        const where: any = { user_id };
+        const where: Record<string, any> = { user_id };
         if (search?.trim()) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             where.order_code = { [Op.iLike]: `%${search.trim()}%` };
         }
         const { rows, count } = await this.OrdersModel.findAndCountAll({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
             order: [[sort_by, sort_order]],
             limit,
             offset,
+            attributes: [
+                'id',
+                'order_code',
+                'amount_cents',
+                'status',
+                'order_type',
+                'paid_at',
+                'created_at',
+            ],
+            include: [
+                {
+                    model: Users,
+                    attributes: ['full_name', 'email', 'avatar'],
+                },
+                {
+                    model: Plans,
+                    attributes: ['name'],
+                },
+                {
+                    model: AiAddonPackages,
+                    attributes: ['name'],
+                },
+            ],
         });
         return {
             message: 'Lấy danh sách payments thành công',
-            data: rows,
-            meta: {
-                page,
-                limit,
-                total_items: count,
-                total_pages: Math.ceil(count / limit),
+            data: {
+                data: rows,
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
             },
+        };
+    }
+    async getPayments(
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+    ) {
+        const offset = (page - 1) * limit;
+        const where: Record<string, any> = {};
+        if (search?.trim()) {
+            where.order_code = { [Op.iLike]: `%${search.trim()}%` };
+        }
+        const { rows, count } = await this.OrdersModel.findAndCountAll({
+            where,
+            order: [[sort_by, sort_order]],
+            limit,
+            offset,
+            attributes: [
+                'id',
+                'order_code',
+                'amount_cents',
+                'status',
+                'order_type',
+                'paid_at',
+                'created_at',
+            ],
+            include: [
+                {
+                    model: Users,
+                    attributes: ['full_name', 'email', 'avatar'],
+                },
+                {
+                    model: Plans,
+                    attributes: ['name'],
+                },
+                {
+                    model: AiAddonPackages,
+                    attributes: ['name'],
+                },
+            ],
+        });
+        return {
+            message: 'Lấy danh sách payments thành công',
+            data: {
+                data: rows,
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
+            },
+        };
+    }
+    async AdminCountPayment(fromDate: Date, toDate: Date) {
+        const durationMs = toDate.getTime() - fromDate.getTime();
+        const previousFromDate = new Date(fromDate.getTime() - durationMs);
+        const previousToExclusive = fromDate;
+
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const previousDateWhere = {
+            [Op.gte]: previousFromDate,
+            [Op.lt]: previousToExclusive,
+        };
+        const [current, previous] = await Promise.all([
+            this.OrdersModel.count({
+                where: {
+                    status: 'PAID',
+                    createdAt: currentDateWhere,
+                },
+            }),
+            this.OrdersModel.count({
+                where: {
+                    status: 'PAID',
+                    createdAt: previousDateWhere,
+                },
+            }),
+        ]);
+        const growth_percent = Helper.calculateGrowthPercent(current, previous);
+        return {
+            value: current,
+            growth_percent,
+        };
+    }
+    async AdminCountAmount(fromDate: Date, toDate: Date) {
+        const durationMs = toDate.getTime() - fromDate.getTime();
+        const previousFromDate = new Date(fromDate.getTime() - durationMs);
+        const previousToExclusive = fromDate;
+
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const previousDateWhere = {
+            [Op.gte]: previousFromDate,
+            [Op.lt]: previousToExclusive,
+        };
+        const [current, previous] = await Promise.all([
+            this.OrdersModel.sum('amount_cents', {
+                where: {
+                    status: 'PAID',
+                    paid_at: currentDateWhere,
+                },
+            }),
+
+            this.OrdersModel.sum('amount_cents', {
+                where: {
+                    status: 'PAID',
+                    paid_at: previousDateWhere,
+                },
+            }),
+        ]);
+        const growth_percent = Helper.calculateGrowthPercent(current, previous);
+        return {
+            value: current,
+            growth_percent,
+        };
+    }
+    async AdminTotalRevenue(fromDate: Date, toDate: Date) {
+        const planPremium = await this.plansService.findOneBySlug('premium');
+        if (!planPremium) {
+            throw new NotFoundException('Không tìm thấy đơn hàng.');
+        }
+        const plaintPlanPremium = planPremium.get({ plain: true });
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+        const [totalRevenues, totalPremiums, totalAddons] = await Promise.all([
+            // Tổng tiền
+            this.OrdersModel.sum('amount_cents', {
+                where: {
+                    status: payment_status.PAID,
+                    paid_at: currentDateWhere,
+                },
+            }),
+            // Tổng tiền premium paid
+            this.OrdersModel.sum('amount_cents', {
+                where: {
+                    status: payment_status.PAID,
+                    order_type: order_type.SUBSCRIPTION,
+                    plan_id: plaintPlanPremium.id,
+                    paid_at: currentDateWhere,
+                },
+            }),
+            // tổng tiền addon
+            this.OrdersModel.sum('amount_cents', {
+                where: {
+                    status: payment_status.PAID,
+                    order_type: order_type.AI_ADDON,
+                    paid_at: currentDateWhere,
+                },
+            }),
+        ]);
+        // Xử lý trường hợp sum trả về null nếu không có dữ liệu
+        const revenue = Number(totalRevenues) || 0;
+        const premium = Number(totalPremiums) || 0;
+        const addon = Number(totalAddons) || 0;
+        const others = revenue - premium - addon;
+        return {
+            totalRevenues: revenue,
+            totalPremiums: premium,
+            totalAddons: addon,
+            totalOrders: others,
+        };
+    }
+    async AdminTotalPremium(fromDate: Date, toDate: Date) {
+        const planPremium = await this.plansService.findOneBySlug('premium');
+        if (!planPremium) {
+            throw new NotFoundException('Không tìm thấy đơn hàng.');
+        }
+        const plaintPlanPremium = planPremium.get({ plain: true });
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+        const [
+            totalPremiums,
+            totalPremiumsPaid,
+            totalPremiumsPending,
+            totalUsers,
+        ] = await Promise.all([
+            // Tổng số đơn hàng
+            this.OrdersModel.count({
+                where: {
+                    paid_at: currentDateWhere,
+                },
+            }),
+            // Tổng số đơn hàng premium đã thanh toán thành công
+            this.OrdersModel.count({
+                where: {
+                    status: payment_status.PAID,
+                    order_type: order_type.SUBSCRIPTION,
+                    plan_id: plaintPlanPremium.id,
+                    paid_at: currentDateWhere,
+                },
+            }),
+            // tổng số đơn hàng premium chờ xử lý
+            this.OrdersModel.count({
+                where: {
+                    status: payment_status.PENDING,
+                    order_type: order_type.SUBSCRIPTION,
+                    plan_id: plaintPlanPremium.id,
+                    paid_at: currentDateWhere,
+                },
+            }),
+            this.usersService.AdminCountAll(),
+        ]);
+        // Xử lý trường hợp sum trả về null nếu không có dữ liệu
+        const total = Number(totalPremiums) || 0;
+        const paid = Number(totalPremiumsPaid) || 0;
+        const pending = Number(totalPremiumsPending) || 0;
+        const canceled = total - paid - pending;
+        const paymentPaidRate = (paid / total) * 100;
+        const premiumRate = (paid / totalUsers) * 100;
+        return {
+            premiumRate,
+            paymentPaidRate,
+            pending,
+            canceled,
         };
     }
     async create(user_id: string, createPaymentDto: CreatePaymentDto) {

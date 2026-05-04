@@ -210,3 +210,22 @@ export const TransformToJson = () =>
             throw new Error('Dữ liệu JSON không hợp lệ.');
         }
     });
+
+export const TransformToDate = () =>
+    Transform(({ value }) => {
+        if (value === undefined || value === null || value === '') {
+            return undefined;
+        }
+
+        if (value instanceof Date) {
+            return value;
+        }
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return new Date('invalid');
+        }
+
+        return date;
+    });

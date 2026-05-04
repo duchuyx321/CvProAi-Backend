@@ -28,7 +28,7 @@ export class UsersService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
         user_status?: user_status,
     ) {
@@ -67,13 +67,15 @@ export class UsersService {
         });
         return {
             message: 'Lấy danh sách người dùng',
-            data: rows ?? [],
-            meta: {
+            data: {
+                data: rows ?? [],
                 meta: {
-                    page,
-                    limit,
-                    total_items: count,
-                    total_pages: Math.ceil(count / limit),
+                    meta: {
+                        page,
+                        limit,
+                        total_items: count,
+                        total_pages: Math.ceil(count / limit),
+                    },
                 },
             },
         };
@@ -277,6 +279,46 @@ export class UsersService {
         };
     }
 
+    async AdminCountUser(fromDate: Date, toDate: Date) {
+        const durationMs = toDate.getTime() - fromDate.getTime();
+        const previousFromDate = new Date(fromDate.getTime() - durationMs);
+        const previousToExclusive = fromDate;
+
+        const currentDateWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const previousDateWhere = {
+            [Op.gte]: previousFromDate,
+            [Op.lt]: previousToExclusive,
+        };
+        const [currentUsers, previousUsers] = await Promise.all([
+            this.UsersModel.count({
+                where: {
+                    createdAt: currentDateWhere,
+                },
+            }),
+            this.UsersModel.count({
+                where: {
+                    createdAt: previousDateWhere,
+                },
+            }),
+        ]);
+        const growth_percent = Helper.calculateGrowthPercent(
+            currentUsers,
+            previousUsers,
+        );
+        return {
+            value: currentUsers,
+            growth_percent,
+        };
+    }
+    async AdminCountAll() {
+        const total = await this.UsersModel.count();
+
+        return total ?? 0;
+    }
     async bannedUser(user_id: string) {
         const user = await this.UsersModel.findOne({
             where: { id: user_id, status: user_status.ACTIVE },

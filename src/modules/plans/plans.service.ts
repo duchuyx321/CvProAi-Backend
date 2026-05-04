@@ -22,7 +22,7 @@ export class PlansService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'name' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
         is_active?: boolean,
     ) {
@@ -51,12 +51,14 @@ export class PlansService {
         });
         return {
             message: 'Lấy danh sách gói dịch vụ thành công',
-            data: rows,
-            meta: {
-                page,
-                limit,
-                total_items: count,
-                total_pages: Math.ceil(count / limit),
+            data: {
+                data: rows,
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
             },
         };
     }

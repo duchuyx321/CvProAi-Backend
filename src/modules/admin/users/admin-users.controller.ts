@@ -4,6 +4,7 @@ import { UseRoles } from '~/common/decorators';
 import { user_role } from '~/models';
 import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
 import { AdminUsersService } from './admin-users.service';
+import { QueryUserDto } from './dto/query-users.dto';
 
 @ApiTags('Admin - Quản lý người dùng')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -13,28 +14,8 @@ export class AdminUsersController {
     constructor(private readonly adminUsersService: AdminUsersService) {}
 
     @Get()
-    async findAllUser(
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'createdAt' | 'updatedAt',
-        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
-    ) {
-        const allowedSortBy = ['createdAt', 'updatedAt'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
-            ? sort_by
-            : 'updatedAt';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
-        return await this.adminUsersService.getUsers(
-            Number(limit) || 8,
-            Number(page) || 1,
-            search,
-            finalSortBy || 'updatedAt',
-            finalSortOrder || 'DESC',
-        );
+    async findAllUser(@Query() queryUserDto: QueryUserDto) {
+        return await this.adminUsersService.getUsers(queryUserDto);
     }
 
     @Get('/:id')

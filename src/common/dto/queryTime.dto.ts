@@ -17,7 +17,7 @@ export enum ExportFormat {
     PDF = 'pdf',
     JSON = 'json',
 }
-export class QueryDashboardDto {
+export class QueryTimeDto {
     @ApiPropertyOptional({
         example: '2026-05-02',
     })

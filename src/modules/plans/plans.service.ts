@@ -24,23 +24,28 @@ export class PlansService {
         search?: string,
         sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
         is_active?: boolean,
     ) {
         const offset = (page - 1) * limit;
-        const where: any = {};
+        const where: Record<string, any> = {};
 
         if (search?.trim()) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             where.name = {
                 [Op.iLike]: `%${search.trim()}%`,
             };
         }
+        if (fromDate && toDate) {
+            where.updatedAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
+            };
+        }
         if (typeof is_active === 'boolean') {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             where.is_active = is_active;
         }
         const { rows, count } = await this.plansModel.findAndCountAll({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
             order: [[sort_by, sort_order]],
             limit,

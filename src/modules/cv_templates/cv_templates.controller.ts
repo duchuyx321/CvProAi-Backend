@@ -1,6 +1,9 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { CvTemplatesService } from './cv_templates.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { DateRangeUtil } from '~/utils/date-range.util';
+import { QueryRange } from '~/common/dto/queryTime.dto';
+import { QueryTemplateDto } from './dto/query-template.dto';
 
 @ApiTags('mẫu cv')
 @Controller('cv-templates')
@@ -9,28 +12,25 @@ export class CvTemplatesController {
 
     @ApiOperation({ summary: 'Lấy danh sách mẫu cv' })
     @Get()
-    async getAllTemplate(
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by')
-        sort_by?: 'createdAt' | 'updatedAt' | 'name',
-        @Query('sort_order') sort_order: 'ASC' | 'DESC' = 'DESC',
-    ) {
-        const allowedSortBy = ['createdAt', 'updatedAt', 'name'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
-            ? sort_by
-            : 'updatedAt';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
+    async getAllTemplate(@Query() query: QueryTemplateDto) {
+        const { limit, page, search, sort_by, sort_order, from, range, to } =
+            query;
+        const { fromDate, toExclusive } = DateRangeUtil.getDateRange(
+            from,
+            to,
+            range as QueryRange,
+            {
+                requireDateRange: false,
+            },
+        );
         return await this.cvTemplatesService.getAllTemplate(
-            Number(limit) || 8,
-            Number(page) || 1,
+            limit,
+            page,
             search,
-            finalSortBy || 'updatedAt',
-            finalSortOrder || 'DESC',
+            sort_by,
+            sort_order,
+            fromDate,
+            toExclusive,
             true,
         );
     }

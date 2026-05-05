@@ -3,6 +3,9 @@ import { PaymentsService } from '~/modules/payments/payments.service';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { PlansService } from '~/modules/plans/plans.service';
 import { SubscriptionsService } from '~/modules/subscriptions/subscriptions.service';
+import { QueryPlanDto } from './dto/query-plan.dto';
+import { DateRangeUtil } from '~/utils/date-range.util';
+import { QueryRange } from '~/common/dto/queryTime.dto';
 
 @Injectable()
 export class AdminPlansService {
@@ -11,19 +14,25 @@ export class AdminPlansService {
         private readonly subscriptionsService: SubscriptionsService,
         private readonly paymentsService: PaymentsService,
     ) {}
-    async getPlans(
-        limit: number,
-        page: number,
-        search?: string,
-        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
-        sort_order: 'ASC' | 'DESC' = 'DESC',
-    ) {
+    async getPlans(queryPlanDto: QueryPlanDto) {
+        const { limit, page, search, sort_by, sort_order, from, range, to } =
+            queryPlanDto;
+        const { fromDate, toExclusive } = DateRangeUtil.getDateRange(
+            from,
+            to,
+            range as QueryRange,
+            {
+                requireDateRange: false,
+            },
+        );
         return await this.plansService.findAll(
             limit,
             page,
             search,
             sort_by,
             sort_order,
+            fromDate,
+            toExclusive,
         );
     }
     async getPlansBySlug(slug: string) {

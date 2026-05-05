@@ -7,6 +7,9 @@ import { CvTemplatesService } from '~/modules/cv_templates/cv_templates.service'
 import { CreateTemplateDTO } from '~/modules/cv_templates/dto/create-template.dto';
 import { UpdateTemplateDto } from '~/modules/cv_templates/dto/update-template.dto';
 import { CvsService } from '~/modules/cvs/cvs.service';
+import { QueryTemplateDto } from './dto/query-template.dto';
+import { DateRangeUtil } from '~/utils/date-range.util';
+import { QueryRange } from '~/common/dto/queryTime.dto';
 
 @Injectable()
 export class AdminCvTemplatesService {
@@ -15,22 +18,28 @@ export class AdminCvTemplatesService {
         private readonly cvsService: CvsService,
     ) {}
 
-    async getAllTemplate(
-        limit: number = 8,
-        page: number = 1,
-        search?: string,
-        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
-        sort_order: 'ASC' | 'DESC' = 'DESC',
-    ) {
+    async getAllTemplate(queryTemplateDto: QueryTemplateDto) {
+        const { limit, page, search, sort_by, sort_order, from, range, to } =
+            queryTemplateDto;
+        const { fromDate, toExclusive } = DateRangeUtil.getDateRange(
+            from,
+            to,
+            range as QueryRange,
+            {
+                requireDateRange: false,
+            },
+        );
         const templates = await this.cvTemplatesService.getAllTemplate(
             limit,
             page,
             search,
             sort_by,
             sort_order,
+            fromDate,
+            toExclusive,
         );
-        if (templates.data.length > 0) {
-            const { data, meta } = templates;
+        if (templates.data.data.length > 0) {
+            const { data, meta } = templates.data;
             const templatesData = await Promise.all(
                 data.map(async (template) => {
                     const plainTemplate = template.get({ plain: true });

@@ -1,14 +1,12 @@
-import { NumberNotRequired, StringNotRequired } from '~/common/decorators';
+import { EnumNotRequired } from '~/common/decorators';
+import { QueryWithTimeDto } from '~/common/dto/query-withTime.dto';
 
-export class QueryPaymentDto {
-    @NumberNotRequired('limit')
-    limit?: number;
-    @NumberNotRequired('offset')
-    page?: number;
-    @StringNotRequired('search')
-    search?: string;
-    @StringNotRequired('search')
-    sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt';
-    @StringNotRequired('search')
-    sort_order: 'ASC' | 'DESC' = 'DESC';
+export enum PaymentSortBy {
+    CREATED_AT = 'createdAt',
+    UPDATED_AT = 'updatedAt',
+    TITLE = 'title',
+}
+export class QueryPaymentDto extends QueryWithTimeDto {
+    @EnumNotRequired('sort_by', PaymentSortBy)
+    sort_by: PaymentSortBy = PaymentSortBy.UPDATED_AT;
 }

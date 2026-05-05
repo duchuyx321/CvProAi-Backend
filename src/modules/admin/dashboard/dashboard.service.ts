@@ -1,9 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import {
-    ExportFormat,
-    QueryDashboardDto,
-    QueryRange,
-} from './dto/query-dashboard.dto';
+
 import { UsersService } from '~/modules/users/users.service';
 import { CvExportService } from '~/modules/cv-export/cv-export.service';
 import { CvsService } from '~/modules/cvs/cvs.service';
@@ -14,6 +10,11 @@ import {
     ExportDashboardService,
     ExportFileResult,
 } from './export-dashboard.service';
+import {
+    ExportFormat,
+    QueryRange,
+    QueryTimeDto,
+} from '~/common/dto/queryTime.dto';
 
 const MAX_DASHBOARD_RANGE_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -134,7 +135,7 @@ export class DashboardService {
 
         return { fromDate, toDate, toExclusive };
     }
-    async getAdminDashboard(queryDashboardDto: QueryDashboardDto) {
+    async getAdminDashboard(queryDashboardDto: QueryTimeDto) {
         const { from, range, to } = queryDashboardDto;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { fromDate, toDate, toExclusive } = this.getDateRange(
@@ -173,6 +174,8 @@ export class DashboardService {
                 undefined,
                 'createdAt',
                 'DESC',
+                fromDate,
+                toExclusive,
             ),
         ]);
         const buckets = Helper.mapToBucket(fromDate, toExclusive);
@@ -223,7 +226,7 @@ export class DashboardService {
 
     async export(
         format: ExportFormat,
-        queryDashboardDto: QueryDashboardDto,
+        queryDashboardDto: QueryTimeDto,
     ): Promise<ExportFileResult> {
         const { data } = await this.getAdminDashboard(queryDashboardDto);
         return this.exportDashboardService.exportDashboard({ format, data });

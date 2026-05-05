@@ -60,11 +60,19 @@ export class PaymentsService {
         search?: string,
         sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
     ) {
         const offset = (page - 1) * limit;
         const where: Record<string, any> = { user_id };
         if (search?.trim()) {
             where.order_code = { [Op.iLike]: `%${search.trim()}%` };
+        }
+        if (fromDate && toDate) {
+            where.createdAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
+            };
         }
         const { rows, count } = await this.OrdersModel.findAndCountAll({
             where,
@@ -114,11 +122,19 @@ export class PaymentsService {
         search?: string,
         sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
     ) {
         const offset = (page - 1) * limit;
         const where: Record<string, any> = {};
         if (search?.trim()) {
             where.order_code = { [Op.iLike]: `%${search.trim()}%` };
+        }
+        if (fromDate && toDate) {
+            where.updatedAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
+            };
         }
         const { rows, count } = await this.OrdersModel.findAndCountAll({
             where,

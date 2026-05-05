@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateTemplateDTO } from '~/modules/cv_templates/dto/create-template.dto';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateTemplateDto } from '~/modules/cv_templates/dto/update-template.dto';
+import { QueryTemplateDto } from './dto/query-template.dto';
 
 @ApiTags('Admin - Quản lý mẫu Cv')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,27 +35,9 @@ export class AdminCvTemplatesController {
     ) {}
     @ApiOperation({ summary: 'Lấy danh sách mẫu cv' })
     @Get()
-    async getAllTemplate(
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'createdAt' | 'updatedAt' | 'name',
-        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
-    ) {
-        const allowedSortBy = ['createdAt', 'updatedAt', 'name'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
-            ? sort_by
-            : 'updatedAt';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
+    async getAllTemplate(@Query() queryTemplateDto: QueryTemplateDto) {
         return await this.adminCvTemplatesService.getAllTemplate(
-            Number(limit) || 8,
-            Number(page) || 1,
-            search,
-            finalSortBy || 'updatedAt',
-            finalSortOrder || 'DESC',
+            queryTemplateDto,
         );
     }
     @ApiOperation({ summary: 'Lấy chi tiết mẫu cv' })

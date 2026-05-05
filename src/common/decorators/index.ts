@@ -81,6 +81,13 @@ export const NumberRequired = (name: string, min = 0) =>
             required: true,
             description: `${name} là bắt buộc`,
         }),
+        Transform(({ value }) => {
+            if (value === undefined || value === null || value === '') {
+                return undefined;
+            }
+
+            return Number(value);
+        }),
         IsNumber({}, { message: `${name} phải là số!` }),
         IsNotEmpty({ message: `${name} không được bỏ trống!` }),
         Type(() => Number),
@@ -91,6 +98,13 @@ export const NumberNotRequired = (name: string) =>
         ApiProperty({
             required: false,
             description: `${name} không bắt buộc`,
+        }),
+        Transform(({ value }) => {
+            if (value === undefined || value === null || value === '') {
+                return undefined;
+            }
+
+            return Number(value);
         }),
         IsNumber({}, { message: `${name} phải là số!` }),
         IsOptional(),

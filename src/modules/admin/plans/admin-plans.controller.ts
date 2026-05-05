@@ -15,6 +15,7 @@ import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
 import { AdminPlansService } from './admin-plans.service';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { user_role } from '~/models';
+import { QueryPlanDto } from './dto/query-plan.dto';
 
 @ApiTags('Admin - Quản lý gói dịch vụ admin')
 @Controller('admin/plans')
@@ -25,29 +26,8 @@ export class AdminPlansController {
     // GET
     @ApiOperation({ summary: 'Lấy gói dịch vụ' })
     @Get()
-    async getPlans(
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by')
-        sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
-        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
-    ) {
-        const allowedSortBy = ['createdAt', 'updatedAt', 'name'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
-            ? sort_by
-            : 'updatedAt';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
-        return await this.adminPlansService.getPlans(
-            Number(limit) || 8,
-            Number(page) || 1,
-            search,
-            finalSortBy || 'updatedAt',
-            finalSortOrder || 'DESC',
-        );
+    async getPlans(@Query() queryPlanDto: QueryPlanDto) {
+        return await this.adminPlansService.getPlans(queryPlanDto);
     }
     // GET
     @ApiOperation({ summary: 'Lấy chi tiết gói dịch vụ' })

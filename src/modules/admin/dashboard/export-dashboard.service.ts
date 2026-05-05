@@ -5,7 +5,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import { ExportFormat } from './dto/query-dashboard.dto';
+import { ExportFormat } from '~/common/dto/queryTime.dto';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import { ChartConfiguration } from 'chart.js';
 
@@ -41,8 +41,8 @@ export class ExportDashboardService {
 
     constructor() {
         this.chartCanvas = new ChartJSNodeCanvas({
-            width: 800,
-            height: 400,
+            width: 720,
+            height: 320,
             backgroundColour: 'white',
         });
     }
@@ -73,13 +73,21 @@ export class ExportDashboardService {
      * bằng danh sách payments gần đây để tránh Excel/PDF hiện NaN hoặc thống kê sai.
      */
     private normalizeDashboardData(raw: any): any {
-        const normalized = raw?.data?.summary
-            ? raw.data
+        /**
+         * API có thể trả nhiều shape khác nhau:
+         * - { summary, chartLineData, payments, ... }
+         * - { data: { summary, chartLineData, payments, ... } }
+         * - { data: { summary, chartLineData, ... }, payments: ... }
+         *
+         * Case cuối rất dễ làm mất payments nếu chỉ return raw.data.
+         */
+        const body = raw?.data?.summary
+            ? { ...raw.data, payments: raw.data.payments ?? raw.payments }
             : raw?.summary
               ? raw
               : (raw?.data ?? raw ?? {});
 
-        return this.enrichDashboardData(normalized);
+        return this.enrichDashboardData(body);
     }
 
     private enrichDashboardData(data: any): any {
@@ -103,6 +111,15 @@ export class ExportDashboardService {
         );
 
         const chartPieData = { ...(data.chartPieData ?? {}) };
+        const currentCombos = this.firstDefined(
+            chartPieData.totalCombos,
+            chartPieData.totalBoth,
+        );
+        const currentOthers = this.firstDefined(
+            chartPieData.totalOthers,
+            chartPieData.others,
+        );
+
         chartPieData.totalRevenues = this.pickNumber(
             chartPieData.totalRevenues,
             stats.totalRevenue,
@@ -118,16 +135,18 @@ export class ExportDashboardService {
             stats.totalAddons,
             hasPaymentRows,
         );
-        chartPieData.totalBoth = this.pickNumber(
-            chartPieData.totalBoth,
+        chartPieData.totalCombos = this.pickNumber(
+            currentCombos,
             stats.totalBoth,
             hasPaymentRows,
         );
-        chartPieData.others = this.pickNumber(
-            chartPieData.others,
+        chartPieData.totalBoth = chartPieData.totalCombos;
+        chartPieData.totalOthers = this.pickNumber(
+            currentOthers,
             stats.others,
             hasPaymentRows,
         );
+        chartPieData.others = chartPieData.totalOthers;
         chartPieData.totalOrders = this.pickNumber(
             chartPieData.totalOrders,
             stats.totalOrders,
@@ -271,6 +290,13 @@ export class ExportDashboardService {
         this.styleHeaderRow(sheet);
         this.styleNumberColumn(sheet, 'value', '#,##0');
         this.styleNumberColumn(sheet, 'growth', '0.0%');
+
+        // Doanh thu cần format tiền, còn growth null thì hiển thị "--" thay vì ép thành 0%.
+        const revenueRow = sheet.getRow(7);
+        revenueRow.getCell('value').numFmt = '#,##0 "₫"';
+        if (typeof revenueRow.getCell('growth').value !== 'number') {
+            revenueRow.getCell('growth').alignment = { horizontal: 'center' };
+        }
     }
 
     private async addActivityGrowthSheet(
@@ -298,8 +324,8 @@ export class ExportDashboardService {
         rows.forEach((item) => {
             sheet.addRow({
                 label: item.label ?? '',
-                fromDate: this.toExcelDate(item.fromDate),
-                toDate: this.toExcelDate(item.toDate),
+                fromDate: this.formatDateVN(item.fromDate),
+                toDate: this.formatDateVN(item.toDate),
                 users: this.getMetricValue(item.users),
                 usersGrowth: this.toExcelPercent(item.users),
                 cvs: this.getMetricValue(item.cvs),
@@ -310,8 +336,6 @@ export class ExportDashboardService {
         });
 
         this.styleHeaderRow(sheet);
-        this.styleDateColumn(sheet, 'fromDate', 'dd/mm/yyyy');
-        this.styleDateColumn(sheet, 'toDate', 'dd/mm/yyyy');
 
         ['users', 'cvs', 'aiRuns'].forEach((key) => {
             this.styleNumberColumn(sheet, key, '#,##0');
@@ -330,31 +354,31 @@ export class ExportDashboardService {
                 this.getMetricValue(item.aiRuns),
             );
 
-            const lineConfig: ChartConfiguration = {
-                type: 'line',
+            const barConfig: ChartConfiguration = {
+                type: 'bar',
                 data: {
                     labels,
                     datasets: [
                         {
                             label: 'Người dùng',
                             data: userValues,
+                            backgroundColor: 'rgba(66,133,244,0.75)',
                             borderColor: '#4285F4',
-                            backgroundColor: 'rgba(66,133,244,0.1)',
-                            tension: 0.3,
+                            borderWidth: 1,
                         },
                         {
                             label: 'CV',
                             data: cvValues,
+                            backgroundColor: 'rgba(52,168,83,0.75)',
                             borderColor: '#34A853',
-                            backgroundColor: 'rgba(52,168,83,0.1)',
-                            tension: 0.3,
+                            borderWidth: 1,
                         },
                         {
                             label: 'AI Analysis',
                             data: aiValues,
+                            backgroundColor: 'rgba(251,188,4,0.75)',
                             borderColor: '#FBBC04',
-                            backgroundColor: 'rgba(251,188,4,0.1)',
-                            tension: 0.3,
+                            borderWidth: 1,
                         },
                     ],
                 },
@@ -365,6 +389,9 @@ export class ExportDashboardService {
                             display: true,
                             text: 'Tăng trưởng hoạt động hệ thống',
                             font: { size: 16 },
+                        },
+                        legend: {
+                            position: 'top',
                         },
                     },
                     scales: {
@@ -377,7 +404,7 @@ export class ExportDashboardService {
             };
 
             const imageBuffer =
-                await this.chartCanvas.renderToBuffer(lineConfig);
+                await this.chartCanvas.renderToBuffer(barConfig);
             const imageId = workbook.addImage({
                 buffer: imageBuffer as unknown as ArrayBuffer,
                 extension: 'png',
@@ -386,7 +413,7 @@ export class ExportDashboardService {
             const imageRow = rows.length + 4;
             sheet.addImage(imageId, {
                 tl: { col: 0, row: imageRow },
-                ext: { width: 780, height: 390 },
+                ext: { width: 720, height: 320 },
             });
         }
     }
@@ -400,23 +427,33 @@ export class ExportDashboardService {
         ];
 
         const chartPieData = data.chartPieData ?? {};
+        const totalPremiums = this.safeNumber(chartPieData.totalPremiums, 0);
+        const totalAddons = this.safeNumber(chartPieData.totalAddons, 0);
+        const totalCombos = this.safeNumber(
+            this.firstDefined(chartPieData.totalCombos, chartPieData.totalBoth),
+            0,
+        );
+        const totalOthers = this.safeNumber(
+            this.firstDefined(chartPieData.totalOthers, chartPieData.others),
+            0,
+        );
 
         sheet.addRows([
             {
                 label: 'Premium',
-                value: this.safeNumber(chartPieData.totalPremiums, 0),
+                value: totalPremiums,
             },
             {
                 label: 'AI Add-on',
-                value: this.safeNumber(chartPieData.totalAddons, 0),
+                value: totalAddons,
             },
             {
                 label: 'Combo Premium + AI Add-on',
-                value: this.safeNumber(chartPieData.totalBoth, 0),
+                value: totalCombos,
             },
             {
                 label: 'Khác',
-                value: this.safeNumber(chartPieData.others, 0),
+                value: totalOthers,
             },
         ]);
 
@@ -433,7 +470,12 @@ export class ExportDashboardService {
         ]);
 
         this.styleHeaderRow(sheet);
-        this.styleNumberColumn(sheet, 'value', '#,##0');
+
+        // Các dòng doanh thu format VND, riêng Tổng đơn hàng là số lượng.
+        [2, 3, 4, 5, 7].forEach((rowNumber) => {
+            sheet.getRow(rowNumber).getCell('value').numFmt = '#,##0 "₫"';
+        });
+        sheet.getRow(8).getCell('value').numFmt = '#,##0';
 
         const lastRow = sheet.lastRow;
         if (lastRow) {
@@ -514,13 +556,13 @@ export class ExportDashboardService {
                 package: this.getPackageName(item),
                 amount: this.getPaymentAmount(item),
                 status: this.getStatusLabel(item.status),
-                time: this.toExcelDate(this.getPaymentTime(item)),
+                time: this.formatDateTimeVN(this.getPaymentTime(item)),
             });
         });
 
         this.styleHeaderRow(sheet);
         this.styleNumberColumn(sheet, 'amount', '#,##0');
-        this.styleDateColumn(sheet, 'time', 'dd/mm/yyyy hh:mm');
+        // Thời gian đã được format theo Asia/Ho_Chi_Minh để tránh Excel/WPS tự lùi ngày do UTC.
     }
 
     // ==================== PDF ====================
@@ -621,9 +663,11 @@ export class ExportDashboardService {
             `Doanh thu AI Add-on: ${this.formatMoney(chartPieData.totalAddons)}`,
         );
         doc.text(
-            `Doanh thu Combo Premium + AI Add-on: ${this.formatMoney(chartPieData.totalBoth)}`,
+            `Doanh thu Combo Premium + AI Add-on: ${this.formatMoney(this.firstDefined(chartPieData.totalCombos, chartPieData.totalBoth))}`,
         );
-        doc.text(`Doanh thu khác: ${this.formatMoney(chartPieData.others)}`);
+        doc.text(
+            `Doanh thu khác: ${this.formatMoney(this.firstDefined(chartPieData.totalOthers, chartPieData.others))}`,
+        );
         doc.text(
             `Tổng đơn hàng: ${this.safeNumber(chartPieData.totalOrders, 0)}`,
         );
@@ -731,6 +775,31 @@ export class ExportDashboardService {
         });
     }
 
+    private toPlainData(value: any): any {
+        if (!value) return value;
+
+        if (Array.isArray(value)) {
+            return value.map((item) => this.toPlainData(item));
+        }
+
+        if (typeof value !== 'object') {
+            return value;
+        }
+        if (typeof value.get === 'function') {
+            try {
+                return this.toPlainData(value.get({ plain: true }));
+            } catch {
+                // fallback xuống dataValues bên dưới
+            }
+        }
+
+        if (value.dataValues && typeof value.dataValues === 'object') {
+            return this.toPlainData(value.dataValues);
+        }
+
+        return value;
+    }
+
     private calculatePaymentStats(rows: any[], totalItems = 0): PaymentStats {
         const paidRows = rows.filter((item) => this.isStatus(item, 'PAID'));
         const totalRevenue = this.sumPayments(paidRows);
@@ -779,60 +848,94 @@ export class ExportDashboardService {
     }
 
     private getPaymentAmount(item: any): number {
+        const plainItem = this.toPlainData(item);
+
         return this.safeNumber(
-            item?.amount_cents ??
-                item?.amountCents ??
-                item?.amount ??
-                item?.amount_vnd ??
-                item?.total_amount,
+            plainItem?.amount_cents ??
+                plainItem?.amountCents ??
+                plainItem?.amount ??
+                plainItem?.amount_vnd ??
+                plainItem?.amountVnd ??
+                plainItem?.total_amount ??
+                plainItem?.totalAmount,
             0,
         );
     }
 
     private isStatus(item: any, status: string): boolean {
-        return String(item?.status ?? '').toUpperCase() === status;
+        const plainItem = this.toPlainData(item);
+        return String(plainItem?.status ?? '').toUpperCase() === status;
     }
 
     private isBothOrder(item: any): boolean {
-        const orderType = this.normalizeOrderType(item?.order_type);
+        const plainItem = this.toPlainData(item);
+        const orderType = this.normalizeOrderType(
+            plainItem?.order_type ?? plainItem?.orderType,
+        );
         return (
             orderType === 'BOTH' ||
-            Boolean(item?.plan?.name && item?.addon_package?.name)
+            Boolean(plainItem?.plan?.name && plainItem?.addon_package?.name)
         );
     }
 
     private isSubscriptionOnly(item: any): boolean {
-        const orderType = this.normalizeOrderType(item?.order_type);
-        if (this.isBothOrder(item)) return false;
-        return orderType === 'SUBSCRIPTION' || Boolean(item?.plan?.name);
+        const plainItem = this.toPlainData(item);
+        const orderType = this.normalizeOrderType(
+            plainItem?.order_type ?? plainItem?.orderType,
+        );
+        if (this.isBothOrder(plainItem)) return false;
+        return orderType === 'SUBSCRIPTION' || Boolean(plainItem?.plan?.name);
     }
 
     private isAddonOnly(item: any): boolean {
-        const orderType = this.normalizeOrderType(item?.order_type);
-        if (this.isBothOrder(item)) return false;
+        const plainItem = this.toPlainData(item);
+        const orderType = this.normalizeOrderType(
+            plainItem?.order_type ?? plainItem?.orderType,
+        );
+        if (this.isBothOrder(plainItem)) return false;
         return (
             orderType === 'AI_ADDON' ||
             orderType === 'ADDON' ||
-            Boolean(item?.addon_package?.name)
+            Boolean(plainItem?.addon_package?.name)
         );
     }
 
     private getPaymentRows(data: any): any[] {
-        /**
-         * Ưu tiên normalizedRows vì enrichDashboardData đã chuẩn hóa một lần.
-         * Nếu gọi trực tiếp helper trước enrich thì tiếp tục dò các shape phổ biến.
-         */
+        const plainData = this.toPlainData(data);
         const candidates = [
-            data?.payments?.normalizedRows,
-            data?.payments?.data?.data,
-            data?.payments?.data?.rows,
-            data?.payments?.data?.items,
-            data?.payments?.data?.payments,
-            data?.payments?.rows,
-            data?.payments?.items,
-            data?.payments?.data,
-            data?.payments,
-            data?.paymentRows,
+            plainData?.payments?.data?.data,
+            plainData?.data?.payments?.data?.data,
+
+            plainData?.payments?.data?.rows,
+            plainData?.data?.payments?.data?.rows,
+
+            plainData?.payments?.data?.items,
+            plainData?.data?.payments?.data?.items,
+
+            plainData?.payments?.rows,
+            plainData?.data?.payments?.rows,
+
+            plainData?.payments?.items,
+            plainData?.data?.payments?.items,
+
+            plainData?.paymentRows,
+            plainData?.data?.paymentRows,
+
+            plainData?.recentPayments,
+            plainData?.data?.recentPayments,
+
+            plainData?.recent_payments,
+            plainData?.data?.recent_payments,
+
+            plainData?.orders,
+            plainData?.data?.orders,
+
+            // normalizedRows để cuối cùng, vì có thể đang là []
+            plainData?.payments?.normalizedRows,
+            plainData?.data?.payments?.normalizedRows,
+
+            plainData?.payments,
+            plainData?.data?.payments,
         ];
 
         for (const candidate of candidates) {
@@ -844,7 +947,8 @@ export class ExportDashboardService {
     }
 
     private normalizePaymentRowsFromCandidate(candidate: any): any[] {
-        const rawRows = this.toArrayLike(candidate);
+        const plainCandidate = this.toPlainData(candidate);
+        const rawRows = this.toArrayLike(plainCandidate);
         if (rawRows.length === 0) return [];
 
         return rawRows
@@ -853,37 +957,45 @@ export class ExportDashboardService {
     }
 
     private toArrayLike(value: any): any[] {
-        if (!value) return [];
+        const plainValue = this.toPlainData(value);
+        if (!plainValue) return [];
 
-        if (Array.isArray(value)) {
-            return value;
+        if (Array.isArray(plainValue)) {
+            return plainValue;
         }
 
-        if (typeof value !== 'object') {
+        if (typeof plainValue !== 'object') {
             return [];
         }
 
-        const nestedArray =
-            value.normalizedRows ??
-            value.data ??
-            value.rows ??
-            value.items ??
-            value.payments;
+        const nestedCandidates = [
+            plainValue.data?.data,
+            plainValue.data?.rows,
+            plainValue.data?.items,
+            plainValue.rows,
+            plainValue.items,
+            plainValue.payments,
+            plainValue.normalizedRows,
+            plainValue.data,
+        ];
 
-        if (Array.isArray(nestedArray)) {
-            return nestedArray;
+        for (const candidate of nestedCandidates) {
+            const plainCandidate = this.toPlainData(candidate);
+            if (Array.isArray(plainCandidate) && plainCandidate.length > 0) {
+                return plainCandidate;
+            }
         }
 
         /**
          * Một số serializer có thể trả object dạng {"0": {...}, "1": {...}}
-         * thay vì array. Chỉ convert khi hầu hết key là số để tránh lấy nhầm
-         * { data, meta } thành rows.
+         * thay vì array. Chỉ convert khi tất cả key là số để tránh lấy nhầm
+         * object kiểu { data, meta } thành rows.
          */
-        const keys = Object.keys(value);
+        const keys = Object.keys(plainValue);
         if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) {
             return keys
                 .sort((a, b) => Number(a) - Number(b))
-                .map((key) => value[key]);
+                .map((key) => plainValue[key]);
         }
 
         return [];
@@ -893,33 +1005,38 @@ export class ExportDashboardService {
     private normalizePaymentRow(row: any): any | null {
         if (!row) return null;
 
-        if (Array.isArray(row)) {
-            const objectCell = row.find(
-                (cell) =>
-                    cell &&
-                    typeof cell === 'object' &&
-                    !Array.isArray(cell) &&
-                    (cell.order_code ||
-                        cell.orderCode ||
-                        cell.status ||
-                        cell.user ||
-                        cell.plan ||
-                        cell.addon_package),
-            );
+        const plainRow = this.toPlainData(row);
+
+        if (Array.isArray(plainRow)) {
+            const objectCell = plainRow.find((cell) => {
+                const plainCell = this.toPlainData(cell);
+                return (
+                    plainCell &&
+                    typeof plainCell === 'object' &&
+                    !Array.isArray(plainCell) &&
+                    (plainCell.order_code ||
+                        plainCell.orderCode ||
+                        plainCell.status ||
+                        plainCell.user ||
+                        plainCell.plan ||
+                        plainCell.addon_package ||
+                        plainCell.dataValues)
+                );
+            });
             if (objectCell) return this.normalizePaymentRow(objectCell);
 
             /**
              * Fallback cho trường hợp backend trả tuple:
              * [order_code, user, package, amount, status, time]
              */
-            if (row.length >= 5) {
+            if (plainRow.length >= 5) {
                 const tupleRow = {
-                    order_code: row[0],
-                    userDisplay: row[1],
-                    packageName: row[2],
-                    amount_cents: row[3],
-                    status: row[4],
-                    created_at: row[5],
+                    order_code: plainRow[0],
+                    userDisplay: plainRow[1],
+                    packageName: plainRow[2],
+                    amount_cents: plainRow[3],
+                    status: plainRow[4],
+                    created_at: plainRow[5],
                 };
                 return this.normalizePaymentRow(tupleRow);
             }
@@ -927,16 +1044,19 @@ export class ExportDashboardService {
             return null;
         }
 
-        if (typeof row !== 'object') {
+        if (typeof plainRow !== 'object') {
             return null;
         }
 
-        const source =
-            row.payment && typeof row.payment === 'object'
-                ? row.payment
-                : row.order && typeof row.order === 'object'
-                  ? row.order
-                  : row;
+        const source = this.toPlainData(
+            plainRow.payment && typeof plainRow.payment === 'object'
+                ? plainRow.payment
+                : plainRow.order && typeof plainRow.order === 'object'
+                  ? plainRow.order
+                  : plainRow,
+        );
+
+        if (!source || typeof source !== 'object') return null;
 
         const orderCode = this.firstDefined(
             source.order_code,
@@ -955,18 +1075,20 @@ export class ExportDashboardService {
             source.amountCents,
             source.amount,
             source.amount_vnd,
+            source.amountVnd,
             source.total_amount,
+            source.totalAmount,
         );
         const createdAt = this.firstDefined(
-            source.created_at,
             source.createdAt,
+            source.created_at,
             source.time,
             source.createdTime,
         );
         const paidAt = this.firstDefined(source.paid_at, source.paidAt);
         const updatedAt = this.firstDefined(
-            source.updated_at,
             source.updatedAt,
+            source.updated_at,
         );
         const orderType = this.firstDefined(
             source.order_type,
@@ -974,10 +1096,13 @@ export class ExportDashboardService {
             source.type,
         );
 
-        const user = source.user ?? source.customer ?? {};
-        const plan = source.plan ?? source.subscription_plan ?? {};
-        const addon =
-            source.addon_package ?? source.addonPackage ?? source.addon ?? {};
+        const user = this.toPlainData(source.user ?? source.customer ?? {});
+        const plan = this.toPlainData(
+            source.plan ?? source.subscription_plan ?? {},
+        );
+        const addon = this.toPlainData(
+            source.addon_package ?? source.addonPackage ?? source.addon ?? {},
+        );
 
         const normalized = {
             ...source,
@@ -990,16 +1115,26 @@ export class ExportDashboardService {
             updated_at: updatedAt ?? null,
             user: {
                 full_name: this.toPlainString(
-                    user.full_name ?? user.fullName ?? source.user_full_name,
+                    user.full_name ??
+                        user.fullName ??
+                        source.user_full_name ??
+                        source.userFullName,
                 ),
-                email: this.toPlainString(user.email ?? source.user_email),
+                email: this.toPlainString(
+                    user.email ?? source.user_email ?? source.userEmail,
+                ),
             },
             plan: {
-                name: this.toPlainString(plan.name ?? source.plan_name),
+                name: this.toPlainString(
+                    plan.name ?? source.plan_name ?? source.planName,
+                ),
             },
             addon_package: {
                 name: this.toPlainString(
-                    addon.name ?? source.addon_name ?? source.addonPackageName,
+                    addon.name ??
+                        source.addon_name ??
+                        source.addonName ??
+                        source.addonPackageName,
                 ),
             },
             userDisplay: this.toPlainString(source.userDisplay),
@@ -1056,11 +1191,14 @@ export class ExportDashboardService {
     }
 
     private getPaymentTotalItems(data: any): number {
+        const plainData = this.toPlainData(data);
         return this.safeNumber(
-            data?.payments?.data?.meta?.total_items ??
-                data?.payments?.meta?.total_items ??
-                data?.payments?.data?.total_items ??
-                data?.payments?.total_items,
+            plainData?.payments?.data?.meta?.total_items ??
+                plainData?.payments?.meta?.total_items ??
+                plainData?.payments?.data?.total_items ??
+                plainData?.payments?.total_items ??
+                plainData?.data?.payments?.data?.meta?.total_items ??
+                plainData?.data?.payments?.meta?.total_items,
             0,
         );
     }
@@ -1084,21 +1222,28 @@ export class ExportDashboardService {
     }
 
     private getUserDisplay(item: any): string {
-        if (item.userDisplay) return item.userDisplay;
+        const plainItem = this.toPlainData(item);
+        if (plainItem?.userDisplay) return plainItem.userDisplay;
 
-        const fullName = item.user?.full_name;
-        const email = item.user?.email;
+        const fullName =
+            plainItem?.user?.full_name ?? plainItem?.user?.fullName;
+        const email = plainItem?.user?.email;
         if (fullName && email) return `${fullName} (${email})`;
         return fullName ?? email ?? '';
     }
 
     private getPackageName(item: any): string {
-        if (item.packageName) return item.packageName;
+        const plainItem = this.toPlainData(item);
+        if (plainItem?.packageName) return plainItem.packageName;
 
-        const planName = item.plan?.name;
-        const addonName = item.addon_package?.name;
+        const planName = plainItem?.plan?.name;
+        const addonName = plainItem?.addon_package?.name;
         if (planName && addonName) return `${planName} + ${addonName}`;
-        return planName ?? addonName ?? this.getOrderTypeLabel(item.order_type);
+        return (
+            planName ??
+            addonName ??
+            this.getOrderTypeLabel(plainItem?.order_type)
+        );
     }
 
     private getOrderTypeLabel(orderType: any): string {
@@ -1136,11 +1281,11 @@ export class ExportDashboardService {
         metric: any,
         fallbackValue: number,
         replaceZeroWhenFallbackAvailable = false,
-    ): { value: number; growth_percent: number } {
+    ): { value: number; growth_percent: number | null } {
         const metricObject =
             metric && typeof metric === 'object'
                 ? metric
-                : { value: metric, growth_percent: 0 };
+                : { value: metric, growth_percent: null };
 
         return {
             ...metricObject,
@@ -1149,7 +1294,10 @@ export class ExportDashboardService {
                 fallbackValue,
                 replaceZeroWhenFallbackAvailable,
             ),
-            growth_percent: this.safeNumber(metricObject.growth_percent, 0),
+            // Không ép null thành 0 vì 0% và chưa có dữ liệu so sánh là 2 ý nghĩa khác nhau.
+            growth_percent: this.toFiniteNumberOrNull(
+                metricObject.growth_percent,
+            ),
         };
     }
 
@@ -1160,11 +1308,16 @@ export class ExportDashboardService {
         return this.safeNumber(metric, 0);
     }
 
-    private getMetricGrowth(metric: any): number {
+    private getMetricGrowth(metric: any): number | null {
         if (metric && typeof metric === 'object') {
-            return this.safeNumber(metric.growth_percent, 0);
+            return this.toFiniteNumberOrNull(metric.growth_percent);
         }
-        return this.safeNumber(metric, 0);
+        return this.toFiniteNumberOrNull(metric);
+    }
+
+    private toExcelPercent(metric: any): number | string {
+        const growth = this.getMetricGrowth(metric);
+        return growth == null ? '--' : growth / 100;
     }
 
     private getStatusLabel(status: string): string {
@@ -1185,7 +1338,16 @@ export class ExportDashboardService {
     }
 
     private getPaymentTime(item: any): any {
-        return item.paid_at ?? item.created_at ?? item.updated_at;
+        const plainItem = this.toPlainData(item);
+        return (
+            plainItem?.paid_at ??
+            plainItem?.paidAt ??
+            plainItem?.createdAt ??
+            plainItem?.created_at ??
+            plainItem?.updatedAt ??
+            plainItem?.updated_at ??
+            null
+        );
     }
 
     private safeNumber(value: any, fallback = 0): number {
@@ -1203,18 +1365,14 @@ export class ExportDashboardService {
         return this.safeNumber(value, 0) / 100;
     }
 
-    private toExcelPercent(metric: any): number {
-        return this.getMetricGrowth(metric) / 100;
-    }
-
     private formatMoney(value: any): string {
         const amount = this.safeNumber(value, 0);
         return `${amount.toLocaleString('vi-VN')}đ`;
     }
 
     private formatPercent(value: any): string {
-        const percent = this.safeNumber(value, 0);
-        return `${percent.toFixed(1)}%`;
+        const percent = this.toFiniteNumberOrNull(value);
+        return percent == null ? '--' : `${percent.toFixed(1)}%`;
     }
 
     private toExcelDate(value: any): Date | string {
@@ -1222,10 +1380,32 @@ export class ExportDashboardService {
         return date ?? '';
     }
 
-    private formatDateTime(value: any): string {
+    private formatDateVN(value: any): string {
         const date = this.parseDate(value);
         if (!date) return '';
-        return date.toLocaleString('vi-VN');
+        return new Intl.DateTimeFormat('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+        }).format(date);
+    }
+
+    private formatDateTime(value: any): string {
+        return this.formatDateTimeVN(value);
+    }
+
+    private formatDateTimeVN(value: any): string {
+        const date = this.parseDate(value);
+        if (!date) return '';
+        return new Intl.DateTimeFormat('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date);
     }
 
     private parseDate(value: any): Date | null {

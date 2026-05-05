@@ -1,0 +1,15 @@
+import { BooleanNotRequired, EnumNotRequired } from '~/common/decorators';
+import { QueryWithTimeDto } from '~/common/dto/query-withTime.dto';
+
+export enum TemplateSortBy {
+    CREATED_AT = 'createdAt',
+    UPDATED_AT = 'updatedAt',
+    NAME = 'name',
+}
+
+export class QueryTemplateDto extends QueryWithTimeDto {
+    @EnumNotRequired('sort_by', TemplateSortBy)
+    sort_by?: TemplateSortBy = TemplateSortBy.UPDATED_AT;
+    @BooleanNotRequired('is_active')
+    is_active: boolean = false;
+}

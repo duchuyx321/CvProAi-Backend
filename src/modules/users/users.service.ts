@@ -30,6 +30,8 @@ export class UsersService {
         search?: string,
         sort_by: 'createdAt' | 'updatedAt' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
         user_status?: user_status,
     ) {
         const offset = (page - 1) * limit;
@@ -41,6 +43,13 @@ export class UsersService {
                 { full_name: { [Op.like]: keyword } },
                 { email: { [Op.like]: keyword } },
             ];
+        }
+        if (fromDate && toDate) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            where.createdAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
+            };
         }
         if (user_status?.trim()) {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

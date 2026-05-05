@@ -4,8 +4,8 @@ import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
 import { UseRoles } from '~/common/decorators';
 import { user_role } from '~/models';
-import { ExportFormat, QueryDashboardDto } from './dto/query-dashboard.dto';
 import type { Response as ExpressResponse } from 'express';
+import { ExportFormat, QueryTimeDto } from '~/common/dto/queryTime.dto';
 @ApiTags('Admin - thông báo và thống kê')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @UseRoles(user_role.ADMIN)
@@ -15,13 +15,13 @@ export class DashboardController {
 
     @ApiOperation({ summary: 'Thông báo và thống kê' })
     @Get()
-    async getAdminDashboard(@Query() queryDashboardDto: QueryDashboardDto) {
+    async getAdminDashboard(@Query() queryDashboardDto: QueryTimeDto) {
         return await this.dashboardService.getAdminDashboard(queryDashboardDto);
     }
     @Get('export/:format')
     async export(
         @Param('format') format: ExportFormat,
-        @Query() queryDashboardDto: QueryDashboardDto,
+        @Query() queryDashboardDto: QueryTimeDto,
         @Res() res: ExpressResponse,
     ) {
         const file = await this.dashboardService.export(

@@ -24,6 +24,8 @@ export class CvTemplatesService {
         search?: string,
         sort_by: 'createdAt' | 'updatedAt' | 'name' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
         is_active?: boolean,
     ) {
         const offset = (page - 1) * limit;
@@ -31,6 +33,12 @@ export class CvTemplatesService {
         if (search?.trim()) {
             where.name = {
                 [Op.iLike]: `%${search}%`,
+            };
+        }
+        if (fromDate && toDate) {
+            where.updatedAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
             };
         }
         if (typeof is_active === 'boolean') {
@@ -48,12 +56,14 @@ export class CvTemplatesService {
 
         return {
             message: 'Lấy danh sách mẫu cv thành công',
-            data: rows,
-            meta: {
-                page,
-                limit,
-                total_items: count,
-                total_pages: Math.ceil(count / limit),
+            data: {
+                data: rows,
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
             },
         };
     }

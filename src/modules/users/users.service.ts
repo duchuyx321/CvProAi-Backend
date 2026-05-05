@@ -64,7 +64,7 @@ export class UsersService {
                 },
                 {
                     model: Usage_quotas,
-                    attributes: { exclude: ['created_at', 'updated_at'] },
+                    attributes: { exclude: ['createdAt', 'updatedAt'] },
                 },
             ],
             attributes: {

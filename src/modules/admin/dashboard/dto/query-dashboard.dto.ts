@@ -11,6 +11,12 @@ export enum QueryRange {
     MONTH = 'month',
     YEAR = 'year',
 }
+
+export enum ExportFormat {
+    EXCEL = 'excel',
+    PDF = 'pdf',
+    JSON = 'json',
+}
 export class QueryDashboardDto {
     @ApiPropertyOptional({
         example: '2026-05-02',

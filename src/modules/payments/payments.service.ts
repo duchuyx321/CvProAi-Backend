@@ -58,7 +58,7 @@ export class PaymentsService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
     ) {
         const offset = (page - 1) * limit;
@@ -78,7 +78,7 @@ export class PaymentsService {
                 'status',
                 'order_type',
                 'paid_at',
-                'created_at',
+                'createdAt',
             ],
             include: [
                 {
@@ -112,7 +112,7 @@ export class PaymentsService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at',
+        sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
     ) {
         const offset = (page - 1) * limit;
@@ -132,7 +132,7 @@ export class PaymentsService {
                 'status',
                 'order_type',
                 'paid_at',
-                'created_at',
+                'createdAt',
             ],
             include: [
                 {
@@ -213,22 +213,22 @@ export class PaymentsService {
         const [current, previous] = await Promise.all([
             this.OrdersModel.sum('amount_cents', {
                 where: {
-                    status: 'PAID',
+                    status: payment_status.PAID,
                     paid_at: currentDateWhere,
                 },
             }),
 
             this.OrdersModel.sum('amount_cents', {
                 where: {
-                    status: 'PAID',
+                    status: payment_status.PAID,
                     paid_at: previousDateWhere,
                 },
             }),
         ]);
         const growth_percent = Helper.calculateGrowthPercent(current, previous);
         return {
-            value: current,
-            growth_percent,
+            value: current || 0,
+            growth_percent: growth_percent || 0,
         };
     }
     async AdminTotalRevenue(fromDate: Date, toDate: Date) {
@@ -276,58 +276,90 @@ export class PaymentsService {
             totalRevenues: revenue,
             totalPremiums: premium,
             totalAddons: addon,
-            totalOrders: others,
+            totalOthers: others,
         };
     }
     async AdminTotalPremium(fromDate: Date, toDate: Date) {
         const planPremium = await this.plansService.findOneBySlug('premium');
+
         if (!planPremium) {
-            throw new NotFoundException('Không tìm thấy đơn hàng.');
+            throw new NotFoundException('Không tìm thấy gói Premium.');
         }
-        const plaintPlanPremium = planPremium.get({ plain: true });
-        const currentDateWhere = {
+
+        const plainPlanPremium = planPremium.get({ plain: true });
+
+        const createdAtWhere = {
             [Op.gte]: fromDate,
             [Op.lt]: toDate,
         };
+
+        const paidAtWhere = {
+            [Op.gte]: fromDate,
+            [Op.lt]: toDate,
+        };
+
+        const premiumOrderWhere = {
+            plan_id: plainPlanPremium.id,
+            order_type: {
+                [Op.in]: [order_type.SUBSCRIPTION, order_type.BOTH],
+            },
+        };
+
         const [
             totalPremiums,
             totalPremiumsPaid,
             totalPremiumsPending,
+            totalPremiumsCanceled,
             totalUsers,
         ] = await Promise.all([
-            // Tổng số đơn hàng
+            // Tổng số đơn premium được tạo trong khoảng thời gian
             this.OrdersModel.count({
                 where: {
-                    paid_at: currentDateWhere,
+                    ...premiumOrderWhere,
+                    createdAt: createdAtWhere,
                 },
             }),
-            // Tổng số đơn hàng premium đã thanh toán thành công
+
+            // Tổng số đơn premium đã thanh toán thành công trong khoảng thời gian
             this.OrdersModel.count({
                 where: {
+                    ...premiumOrderWhere,
                     status: payment_status.PAID,
-                    order_type: order_type.SUBSCRIPTION,
-                    plan_id: plaintPlanPremium.id,
-                    paid_at: currentDateWhere,
+                    paid_at: paidAtWhere,
                 },
             }),
-            // tổng số đơn hàng premium chờ xử lý
+
+            // Tổng số đơn premium đang chờ xử lý trong khoảng thời gian
+            // Pending chưa có paid_at, nên phải lọc bằng createdAt
             this.OrdersModel.count({
                 where: {
+                    ...premiumOrderWhere,
                     status: payment_status.PENDING,
-                    order_type: order_type.SUBSCRIPTION,
-                    plan_id: plaintPlanPremium.id,
-                    paid_at: currentDateWhere,
+                    createdAt: createdAtWhere,
                 },
             }),
+
+            // Tổng số đơn premium đã hủy trong khoảng thời gian
+            this.OrdersModel.count({
+                where: {
+                    ...premiumOrderWhere,
+                    status: payment_status.CANCELED,
+                    createdAt: createdAtWhere,
+                },
+            }),
+
             this.usersService.AdminCountAll(),
         ]);
-        // Xử lý trường hợp sum trả về null nếu không có dữ liệu
+
         const total = Number(totalPremiums) || 0;
         const paid = Number(totalPremiumsPaid) || 0;
         const pending = Number(totalPremiumsPending) || 0;
-        const canceled = total - paid - pending;
-        const paymentPaidRate = (paid / total) * 100;
-        const premiumRate = (paid / totalUsers) * 100;
+        const canceled = Number(totalPremiumsCanceled) || 0;
+        const users = Number(totalUsers) || 0;
+
+        const paymentPaidRate = total > 0 ? (paid / total) * 100 : 0;
+        const premiumRate = users > 0 ? (paid / users) * 100 : 0;
+
         return {
             premiumRate,
             paymentPaidRate,
@@ -630,10 +662,14 @@ export class PaymentsService {
                 'Số tiền thanh toán của bạn không hợp lệ.',
             );
         }
+        let transactionTime = payload.transactionDate
+            ? new Date(payload.transactionDate)
+            : new Date();
+        if (isNaN(transactionTime.getTime())) transactionTime = new Date();
         await order.update({
             status: payment_status.PAID,
             provider_transaction_id: String(payload.id),
-            paid_at: new Date(payload.transactionDate),
+            paid_at: transactionTime,
             metadata: {
                 ...(order.metadata ?? {}),
                 ...payload,

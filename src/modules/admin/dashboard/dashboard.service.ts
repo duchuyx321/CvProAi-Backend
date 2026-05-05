@@ -1,11 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { QueryDashboardDto, QueryRange } from './dto/query-dashboard.dto';
+import {
+    ExportFormat,
+    QueryDashboardDto,
+    QueryRange,
+} from './dto/query-dashboard.dto';
 import { UsersService } from '~/modules/users/users.service';
 import { CvExportService } from '~/modules/cv-export/cv-export.service';
 import { CvsService } from '~/modules/cvs/cvs.service';
 import { AiRunsService } from '~/modules/ai-runs/ai-runs.service';
 import { PaymentsService } from '~/modules/payments/payments.service';
 import { Helper } from '~/utils/helpers';
+import {
+    ExportDashboardService,
+    ExportFileResult,
+} from './export-dashboard.service';
 
 const MAX_DASHBOARD_RANGE_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -17,6 +25,7 @@ export class DashboardService {
         private readonly cvsService: CvsService,
         private readonly AiRunsService: AiRunsService,
         private readonly paymentsService: PaymentsService,
+        private readonly exportDashboardService: ExportDashboardService,
     ) {}
     startOfDay(date: Date) {
         const result = new Date(date);
@@ -162,7 +171,7 @@ export class DashboardService {
                 4,
                 1,
                 undefined,
-                'created_at',
+                'createdAt',
                 'DESC',
             ),
         ]);
@@ -171,21 +180,21 @@ export class DashboardService {
             buckets.map(async (bucket) => {
                 const [users, cvs, aiRuns] = await Promise.all([
                     this.usersService.AdminCountUser(
-                        bucket.formDate,
+                        bucket.fromDate,
                         bucket.toDate,
                     ),
                     this.cvsService.AdminCountCvs(
-                        bucket.formDate,
+                        bucket.fromDate,
                         bucket.toDate,
                     ),
                     this.AiRunsService.AdminCountAiRuns(
-                        bucket.formDate,
+                        bucket.fromDate,
                         bucket.toDate,
                     ),
                 ]);
                 return {
                     label: bucket.label,
-                    fromDate: bucket.formDate,
+                    fromDate: bucket.fromDate,
                     toDate: bucket.toDate,
                     users,
                     cvs,
@@ -210,5 +219,13 @@ export class DashboardService {
                 payments,
             },
         };
+    }
+
+    async export(
+        format: ExportFormat,
+        queryDashboardDto: QueryDashboardDto,
+    ): Promise<ExportFileResult> {
+        const { data } = await this.getAdminDashboard(queryDashboardDto);
+        return this.exportDashboardService.exportDashboard({ format, data });
     }
 }

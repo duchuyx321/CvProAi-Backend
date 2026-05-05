@@ -19,6 +19,7 @@ import { AiRunsModule } from '~/modules/ai-runs/ai-runs.module';
 import { CvExportModule } from '~/modules/cv-export/cv-export.module';
 import { AdminPaymentController } from './payments/admin-payments.controller';
 import { AdminPaymentsService } from './payments/admin-payments.service';
+import { ExportDashboardService } from './dashboard/export-dashboard.service';
 
 @Module({
     imports: [
@@ -46,6 +47,7 @@ import { AdminPaymentsService } from './payments/admin-payments.service';
         AdminPlansService,
         DashboardService,
         AdminPaymentsService,
+        ExportDashboardService,
     ],
 })
 export class AdminModule {}

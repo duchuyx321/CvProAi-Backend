@@ -32,15 +32,15 @@ export class PaymentsController {
         @Query('limit') limit?: number,
         @Query('page') page?: number,
         @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'title',
+        @Query('sort_by') sort_by?: 'createdAt' | 'updatedAt' | 'title',
         @Query('sort_order') sort_order?: 'ASC' | 'DESC',
     ) {
         const user_id = (req['user'] as { user_id: string }).user_id;
-        const allowedSortBy = ['created_at', 'updated_at', 'title'];
+        const allowedSortBy = ['createdAt', 'updatedAt', 'title'];
         const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
+        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
             ? sort_by
-            : 'updated_at';
+            : 'updatedAt';
         const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
             ? sort_order
             : 'DESC';
@@ -49,7 +49,7 @@ export class PaymentsController {
             Number(limit) || 8,
             Number(page) || 1,
             search,
-            finalSortBy || 'updated_at',
+            finalSortBy || 'updatedAt',
             finalSortOrder || 'DESC',
         );
     }

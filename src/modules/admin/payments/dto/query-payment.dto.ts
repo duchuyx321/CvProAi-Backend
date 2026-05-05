@@ -8,7 +8,7 @@ export class QueryPaymentDto {
     @StringNotRequired('search')
     search?: string;
     @StringNotRequired('search')
-    sort_by: 'created_at' | 'updated_at' | 'title' = 'updated_at';
+    sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt';
     @StringNotRequired('search')
     sort_order: 'ASC' | 'DESC' = 'DESC';
 }

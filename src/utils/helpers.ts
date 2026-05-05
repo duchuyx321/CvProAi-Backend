@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 type Mode = 'DAILY' | 'PARITY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
 export interface Buckets {
     label: string;
-    formDate: Date;
+    fromDate: Date;
     toDate: Date;
 }
 export class Helper {
@@ -90,8 +90,8 @@ export class Helper {
 
         return Number((((current - previous) / previous) * 100).toFixed(1));
     }
-    static diffDays(formDate: Date, toDate: Date) {
-        const start = new Date(formDate);
+    static diffDays(fromDate: Date, toDate: Date) {
+        const start = new Date(fromDate);
         const end = new Date(toDate);
         start.setHours(0, 0, 0, 0);
         end.setHours(0, 0, 0, 0);
@@ -111,25 +111,25 @@ export class Helper {
         d.setDate(d.getDate() + days);
         return d;
     };
-    static mapToBucket(formDate: Date, toDate: Date) {
-        const totalDate = this.diffDays(formDate, toDate);
+    static mapToBucket(fromDate: Date, toDate: Date) {
+        const totalDate = this.diffDays(fromDate, toDate);
         const mode = this.getModeDate(totalDate);
         const buckets: Buckets[] = [];
         switch (mode) {
             case 'DAILY':
                 for (let i = 0; i < totalDate; i++) {
-                    const current = this.addDays(formDate, i);
+                    const current = this.addDays(fromDate, i);
                     buckets.push({
                         label: `D${i + 1}`,
-                        formDate: current,
-                        toDate: current,
+                        fromDate: current,
+                        toDate: this.addDays(current, 1),
                     });
                 }
                 break;
             case 'PARITY':
                 const isTotalEven: boolean = totalDate % 2 === 0;
                 for (let i = 0; i < totalDate; i++) {
-                    const curren = this.addDays(formDate, i);
+                    const current = this.addDays(fromDate, i);
                     const dayNumber = i + 1;
                     const shouldPush = isTotalEven
                         ? dayNumber % 2 === 0
@@ -137,8 +137,8 @@ export class Helper {
                     if (shouldPush) {
                         buckets.push({
                             label: `P${dayNumber}`,
-                            formDate: curren,
-                            toDate: curren,
+                            fromDate: current,
+                            toDate: this.addDays(current, 1),
                         });
                     }
                 }
@@ -150,21 +150,21 @@ export class Helper {
                     const isLastBucket = i === 3;
                     buckets.push({
                         label: `W${i + 1}`,
-                        formDate: this.addDays(formDate, statrtDate),
+                        fromDate: this.addDays(fromDate, statrtDate),
                         toDate: isLastBucket
-                            ? this.addDays(formDate, totalDate)
-                            : this.addDays(formDate, statrtDate + 6),
+                            ? this.addDays(fromDate, totalDate)
+                            : this.addDays(fromDate, statrtDate + 6),
                     });
                     if (isLastBucket) break;
                 }
                 break;
             case 'MONTHLY':
-                const current = new Date(formDate);
+                const current = new Date(fromDate);
                 current.setDate(1);
                 while (current <= toDate) {
                     let start = new Date(current);
-                    if (start < formDate) {
-                        start = new Date(formDate);
+                    if (start < fromDate) {
+                        start = new Date(fromDate);
                     }
                     let end = new Date(
                         current.getFullYear(),
@@ -176,21 +176,21 @@ export class Helper {
                     }
                     buckets.push({
                         label: `T${current.getMonth() + 1}`,
-                        formDate: start,
+                        fromDate: start,
                         toDate: end,
                     });
                     current.setMonth(current.getMonth() + 1);
                 }
                 break;
             case 'QUARTERLY':
-                const currentQuarte = new Date(formDate);
+                const currentQuarte = new Date(fromDate);
                 const startMonthOfQuarter =
                     Math.floor(currentQuarte.getMonth() / 3) * 3;
                 currentQuarte.setMonth(startMonthOfQuarter);
                 currentQuarte.setDate(1);
                 while (currentQuarte <= toDate) {
                     let bStart = new Date(currentQuarte);
-                    if (bStart < formDate) bStart = new Date(formDate);
+                    if (bStart < fromDate) bStart = new Date(fromDate);
                     let bEnd = new Date(
                         currentQuarte.getFullYear(),
                         currentQuarte.getMonth() + 3,
@@ -201,7 +201,7 @@ export class Helper {
                         Math.floor(currentQuarte.getMonth() / 3) + 1;
                     buckets.push({
                         label: `Q${quarterIdx}`,
-                        formDate: bStart,
+                        fromDate: bStart,
                         toDate: bEnd,
                     });
                     currentQuarte.setMonth(currentQuarte.getMonth() + 3);

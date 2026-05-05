@@ -15,8 +15,7 @@ import { Ai_runs, Cv_exports, Cvs, Users } from '~/models';
 @Table({
     tableName: 'cv_versions',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
     indexes: [
         {
             unique: true,

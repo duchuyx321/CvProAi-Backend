@@ -13,8 +13,7 @@ import { Users } from '~/models';
 @Table({
     tableName: 'usage_quotas',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
 })
 export class Usage_quotas extends Model<Usage_quotas> {
     @PrimaryKey

@@ -13,8 +13,7 @@ import { Ai_runs } from '~/models';
 @Table({
     tableName: 'ai_results',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
 })
 export class Ai_results extends Model<Ai_results> {
     @PrimaryKey

@@ -12,8 +12,7 @@ import { Cvs } from '~/models';
 @Table({
     tableName: 'cv_templates',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
 })
 export class Cv_templates extends Model<Cv_templates> {
     @PrimaryKey

@@ -11,6 +11,7 @@ import {
     Orders,
     payment_status,
     Plans,
+    User_profile,
     Users,
 } from '~/models';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -24,6 +25,21 @@ import { Op } from 'sequelize';
 import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
 import { UpdateUsageQuotasDto } from '../usage-quotas/dto/update-usageQuatas.dto';
 import { UsersService } from '../users/users.service';
+import { Subscriptions } from '~/models/subscriptions.model';
+import { EditPaymentDto } from '../admin/payments/dto/edit-payment.dto';
+import { merge } from 'lodash';
+
+const allowedTransitions: Record<payment_status, payment_status[]> = {
+    [payment_status.PENDING]: [
+        payment_status.PAID,
+        payment_status.FAILED,
+        payment_status.CANCELED,
+    ],
+    [payment_status.FAILED]: [payment_status.PENDING, payment_status.CANCELED],
+    [payment_status.PAID]: [payment_status.REFUNDED],
+    [payment_status.CANCELED]: [],
+    [payment_status.REFUNDED]: [],
+};
 
 @Injectable()
 export class PaymentsService {
@@ -67,7 +83,7 @@ export class PaymentsService {
             include: [
                 {
                     model: Users,
-                    attributes: ['full_name', 'email', 'avatar'],
+                    attributes: ['full_name', 'email'],
                 },
                 {
                     model: Plans,
@@ -121,7 +137,7 @@ export class PaymentsService {
             include: [
                 {
                     model: Users,
-                    attributes: ['full_name', 'email', 'avatar'],
+                    attributes: ['full_name', 'email'],
                 },
                 {
                     model: Plans,
@@ -472,9 +488,68 @@ export class PaymentsService {
     async getPaymentById(id: string, user_id: string) {
         const payment = await this.OrdersModel.findOne({
             where: { id, user_id },
+            include: [
+                {
+                    model: Users,
+                    attributes: {
+                        exclude: ['password_hash'],
+                    },
+                    include: [
+                        {
+                            model: User_profile,
+                            attributes: {
+                                exclude: ['createdAt', 'updatedAt'],
+                            },
+                        },
+                    ],
+                },
+                {
+                    model: Plans,
+                },
+                {
+                    model: AiAddonPackages,
+                },
+                {
+                    model: Subscriptions,
+                },
+            ],
         });
         if (!payment) {
             throw new NotFoundException('Không tìm thấy đơn hàng này.');
+        }
+        return payment;
+    }
+    async getPaymentByOrderCode(order_code: string) {
+        const payment = await this.OrdersModel.findOne({
+            where: { order_code },
+            include: [
+                {
+                    model: Users,
+                    attributes: {
+                        exclude: ['password_hash'],
+                    },
+                    include: [
+                        {
+                            model: User_profile,
+                            attributes: {
+                                exclude: ['createdAt', 'updatedAt'],
+                            },
+                        },
+                    ],
+                },
+                {
+                    model: Plans,
+                },
+                {
+                    model: AiAddonPackages,
+                },
+                {
+                    model: Subscriptions,
+                },
+            ],
+        });
+        if (!payment) {
+            throw new NotFoundException('Không tìm thấy đơn hàng.');
         }
         return payment;
     }
@@ -565,41 +640,79 @@ export class PaymentsService {
             },
         });
         // cập nhật vào subscript và quota
-        const subscription = await this.subscriptionsService.create({
-            order_id: plainOrder.id,
-            plan_id: plainOrder.plan_id as string,
-            user_id: plainOrder.user_id,
-        });
+        let subscription: any = null;
+        let planAiLimit = 0;
+        let planExportLimit = 0;
+        let addonAiRuns = 0;
+
         const quota = await this.usageQuotasService.getUsageQuotaByUserId(
             plainOrder.user_id,
         );
-        let ai_runs_limit = 0;
-        let exports_limit = 0;
+
+        const currentAiLimit = Number(
+            quota.quota.dataValues.ai_runs_limit ??
+                quota.quota.ai_runs_limit ??
+                0,
+        );
+
+        const currentExportLimit = Number(
+            quota.quota.dataValues.exports_limit ??
+                quota.quota.exports_limit ??
+                0,
+        );
+
         if (plainOrder.plan_id) {
             const plan = await this.plansService.findOneById(
                 plainOrder.plan_id,
             );
-            ai_runs_limit += Number(plan.data.dataValues.ai_limit);
-            exports_limit = plan.data.dataValues.export_limit;
-        } else if (plainOrder.addon_package_id) {
+
+            planAiLimit = Number(
+                plan.data.dataValues.ai_limit ?? plan.data.ai_limit ?? 0,
+            );
+
+            planExportLimit = Number(
+                plan.data.dataValues.export_limit ??
+                    plan.data.export_limit ??
+                    0,
+            );
+
+            subscription = await this.subscriptionsService.create({
+                order_id: plainOrder.id,
+                plan_id: plainOrder.plan_id,
+                user_id: plainOrder.user_id,
+            });
+        }
+
+        if (plainOrder.addon_package_id) {
             const addon =
                 await this.aiAddonPackagesService.getAiAddonPackagesById(
                     plainOrder.addon_package_id,
                 );
-            ai_runs_limit += Number(addon.dataValues.runs);
+
+            addonAiRuns = Number(addon.dataValues.runs ?? addon.runs ?? 0);
         }
+
         const payloadQuot: UpdateUsageQuotasDto = {
             user_id: plainOrder.user_id,
-            quota_end_at: subscription.dataValues.current_period_end,
-            ai_runs_used: 0,
-            exports_used: 0,
         };
-        if (ai_runs_limit !== 0) {
-            payloadQuot['ai_runs_limit'] = ai_runs_limit;
+
+        if (plainOrder.plan_id) {
+            // Mua plan: reset quota theo plan, rồi cộng add-on nếu có
+            payloadQuot.ai_runs_limit = planAiLimit + addonAiRuns;
+            payloadQuot.exports_limit = planExportLimit;
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            payloadQuot.quota_end_at =
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                subscription.dataValues.current_period_end ??
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                subscription.current_period_end;
+        } else if (plainOrder.addon_package_id) {
+            // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
+            payloadQuot.ai_runs_limit = currentAiLimit + addonAiRuns;
+            payloadQuot.exports_limit = currentExportLimit;
         }
-        if (exports_limit !== 0) {
-            payloadQuot['exports_limit'] = exports_limit;
-        }
+
         await this.usageQuotasService.updateUsageQuota(
             quota.quota.dataValues.id,
             payloadQuot,
@@ -627,5 +740,176 @@ export class PaymentsService {
                 plan_id,
             },
         });
+    }
+    async AdminEditStatus(id: string, editPaymentDto: EditPaymentDto) {
+        const order = await this.OrdersModel.findByPk(id);
+
+        if (!order) {
+            throw new NotFoundException('Không tìm thấy đơn hàng này');
+        }
+
+        const plainOrder = order.get({ plain: true });
+
+        const { provider_transaction_id, reason, status } = editPaymentDto;
+
+        if (!status) {
+            throw new BadRequestException('Vui lòng chọn trạng thái đơn hàng');
+        }
+
+        if (!reason || !reason.trim()) {
+            throw new BadRequestException(
+                'Vui lòng nhập lý do cập nhật trạng thái',
+            );
+        }
+
+        const currentStatus = plainOrder.status;
+        const newStatus = status;
+
+        let find_provider_transaction_id: string =
+            plainOrder.provider_transaction_id as string;
+        let find_paid_at: Date = new Date(plainOrder.paid_at as Date);
+
+        if (currentStatus === newStatus) {
+            throw new BadRequestException(
+                'Trạng thái mới trùng với trạng thái hiện tại.',
+            );
+        }
+
+        if (!allowedTransitions[currentStatus]?.includes(newStatus)) {
+            throw new BadRequestException(
+                `Không thể chuyển trạng thái từ ${currentStatus} sang ${newStatus}`,
+            );
+        }
+
+        if (newStatus === payment_status.PAID) {
+            if (!provider_transaction_id || !provider_transaction_id.trim()) {
+                throw new BadRequestException(
+                    'Vui lòng nhập mã giao dịch khi chuyển sang PAID',
+                );
+            }
+
+            const existedTransaction = await this.OrdersModel.findOne({
+                where: {
+                    provider_transaction_id: provider_transaction_id.trim(),
+                },
+            });
+
+            if (existedTransaction && existedTransaction.id !== id) {
+                throw new BadRequestException(
+                    'Mã giao dịch này đã được sử dụng cho đơn hàng khác',
+                );
+            }
+
+            find_provider_transaction_id = provider_transaction_id.trim();
+            find_paid_at = new Date();
+        }
+
+        if (
+            newStatus !== payment_status.PAID &&
+            provider_transaction_id &&
+            provider_transaction_id.trim()
+        ) {
+            throw new BadRequestException(
+                'Chỉ được nhập mã giao dịch khi chuyển trạng thái sang PAID',
+            );
+        }
+
+        const oldMetadata = plainOrder.metadata ?? {};
+        const newMetadata = merge({}, oldMetadata, {
+            old_status: currentStatus,
+            new_status: newStatus,
+            reason: reason.trim(),
+        });
+
+        await order.update({
+            status: newStatus,
+            provider_transaction_id: find_provider_transaction_id,
+            paid_at: find_paid_at,
+            metadata: newMetadata,
+        });
+        if (newStatus === payment_status.PAID) {
+            let subscription: any = null;
+            let planAiLimit = 0;
+            let planExportLimit = 0;
+            let addonAiRuns = 0;
+
+            const quota = await this.usageQuotasService.getUsageQuotaByUserId(
+                plainOrder.user_id,
+            );
+
+            const currentAiLimit = Number(
+                quota.quota.dataValues.ai_runs_limit ??
+                    quota.quota.ai_runs_limit ??
+                    0,
+            );
+
+            const currentExportLimit = Number(
+                quota.quota.dataValues.exports_limit ??
+                    quota.quota.exports_limit ??
+                    0,
+            );
+
+            if (plainOrder.plan_id) {
+                const plan = await this.plansService.findOneById(
+                    plainOrder.plan_id,
+                );
+
+                planAiLimit = Number(
+                    plan.data.dataValues.ai_limit ?? plan.data.ai_limit ?? 0,
+                );
+
+                planExportLimit = Number(
+                    plan.data.dataValues.export_limit ??
+                        plan.data.export_limit ??
+                        0,
+                );
+
+                subscription = await this.subscriptionsService.create({
+                    order_id: plainOrder.id,
+                    plan_id: plainOrder.plan_id,
+                    user_id: plainOrder.user_id,
+                });
+            }
+
+            if (plainOrder.addon_package_id) {
+                const addon =
+                    await this.aiAddonPackagesService.getAiAddonPackagesById(
+                        plainOrder.addon_package_id,
+                    );
+
+                addonAiRuns = Number(addon.dataValues.runs ?? addon.runs ?? 0);
+            }
+
+            const payloadQuot: UpdateUsageQuotasDto = {
+                user_id: plainOrder.user_id,
+            };
+
+            if (plainOrder.plan_id) {
+                // Mua plan: reset quota theo plan, rồi cộng add-on nếu có
+                payloadQuot.ai_runs_limit = planAiLimit + addonAiRuns;
+                payloadQuot.exports_limit = planExportLimit;
+
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                payloadQuot.quota_end_at =
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    subscription.dataValues.current_period_end ??
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    subscription.current_period_end;
+            } else if (plainOrder.addon_package_id) {
+                // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
+                payloadQuot.ai_runs_limit = currentAiLimit + addonAiRuns;
+                payloadQuot.exports_limit = currentExportLimit;
+            }
+
+            await this.usageQuotasService.updateUsageQuota(
+                quota.quota.dataValues.id,
+                payloadQuot,
+            );
+        }
+
+        return {
+            message: 'Cập nhật trạng thái đơn hàng thành công',
+            data: order,
+        };
     }
 }

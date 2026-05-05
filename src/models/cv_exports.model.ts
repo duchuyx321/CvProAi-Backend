@@ -19,8 +19,7 @@ export enum export_format {
 @Table({
     tableName: 'cv_exports',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
 })
 export class Cv_exports extends Model<Cv_exports> {
     @PrimaryKey

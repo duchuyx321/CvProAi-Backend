@@ -21,8 +21,7 @@ export enum ai_run_status {
 @Table({
     tableName: 'ai_runs',
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: false,
+    underscored: true,
 })
 export class Ai_runs extends Model<Ai_runs> {
     @PrimaryKey

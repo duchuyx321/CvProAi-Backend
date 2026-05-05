@@ -121,14 +121,14 @@ export class Orders extends Model<Orders> {
     paid_at?: Date;
 
     @BelongsTo(() => Users)
-    user?: Users;
+    declare user?: Users;
 
     @BelongsTo(() => Plans)
-    plan?: Plans;
+    declare plan?: Plans;
 
     @BelongsTo(() => AiAddonPackages)
-    addon_package?: AiAddonPackages;
+    declare addon_package?: AiAddonPackages;
 
     @HasOne(() => Subscriptions)
-    subscription?: Subscriptions;
+    declare subscription?: Subscriptions;
 }

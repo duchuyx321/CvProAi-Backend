@@ -17,6 +17,8 @@ import { CvTemplatesModule } from '~/modules/cv_templates/cv_templates.module';
 import { UserProfileModule } from '~/modules/user_profile/user_profile.module';
 import { AiRunsModule } from '~/modules/ai-runs/ai-runs.module';
 import { CvExportModule } from '~/modules/cv-export/cv-export.module';
+import { AdminPaymentController } from './payments/admin-payments.controller';
+import { AdminPaymentsService } from './payments/admin-payments.service';
 
 @Module({
     imports: [
@@ -36,12 +38,14 @@ import { CvExportModule } from '~/modules/cv-export/cv-export.module';
         AdminCvTemplatesController,
         AdminPlansController,
         DashboardController,
+        AdminPaymentController,
     ],
     providers: [
         AdminUsersService,
         AdminCvTemplatesService,
         AdminPlansService,
         DashboardService,
+        AdminPaymentsService,
     ],
 })
 export class AdminModule {}

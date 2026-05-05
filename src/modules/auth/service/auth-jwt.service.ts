@@ -46,11 +46,12 @@ export class AuthJwtService {
 
     cookieOptions() {
         const maxAge = this.getEnvDurationMs('JWT_REFRESH_TOKEN_EXPIRATION');
-
+        const isProduction =
+            this.configService.get<string>('NODE_ENV') === 'production';
         return {
             httpOnly: true,
-            secure: this.configService.get<string>('NODE_ENV') === 'production',
-            sameSite: 'lax' as const,
+            secure: isProduction,
+            sameSite: isProduction ? ('none' as const) : ('lax' as const),
             path: '/',
             maxAge,
         };

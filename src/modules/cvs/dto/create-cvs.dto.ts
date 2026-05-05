@@ -78,5 +78,4 @@ export class CreateCVSDto {
     @TransformToJson()
     @ObjectNotRequired('custom_config')
     custom_config?: Partial<CVTemplateConfig>;
-    createCVSDto: any;
 }

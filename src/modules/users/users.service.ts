@@ -267,7 +267,7 @@ export class UsersService {
             user_id,
             3,
             1,
-            '',
+            undefined,
             'created_at',
             'DESC',
         );

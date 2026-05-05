@@ -158,6 +158,11 @@ export class CvsService {
             },
         };
     }
+    async findOneBySlug(user_id: string, slug: string) {
+        return await this.CvsModule.findOne({
+            where: { slug, user_id },
+        });
+    }
     async getCountCvs(template_id: string) {
         return await this.CvsModule.count({
             where: { template_id },
@@ -219,8 +224,8 @@ export class CvsService {
                 throw new BadRequestException('Bạn đã hết tạo CV.');
             }
             const slug = Helper.makeSlugFromString(createCVSDto.title);
-            const alreadyExists = await this.getCvMeSlug(user_id, slug, true);
-            if (alreadyExists?.data) {
+            const alreadyExists = await this.findOneBySlug(user_id, slug);
+            if (alreadyExists) {
                 const files = this.getFilesToDelete(createCVSDto);
                 if (files.length > 0) {
                     await this.cloudinaryService.deleteMultiple(files);
@@ -265,8 +270,8 @@ export class CvsService {
                     throw new BadRequestException('tiêu đề này đã tồn tại.');
                 }
             }
-            const oldCustomConfig =
-                cv.data.dataValues.get('custom_config') ?? {};
+            const plainCv = cv.data.get({ plain: true });
+            const oldCustomConfig = plainCv.custom_config ?? {};
             const hasNewCustomConfig =
                 updateCVSDto.custom_config &&
                 Object.keys(updateCVSDto.custom_config).length > 0;
@@ -356,7 +361,7 @@ export class CvsService {
                 cv_id: cvID,
                 created_by: user_id,
                 content: cv.data.dataValues.content as CVContent,
-                custom_config: cv.data.dataValues.custom_config,
+                custom_config: cv.data.dataValues.custom_config ?? {},
             } as CreateVersionDto);
             // lưu vòa export history
             await this.cvExportService.addExport({

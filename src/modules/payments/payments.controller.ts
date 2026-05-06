@@ -76,12 +76,22 @@ export class PaymentsController {
         return await this.paymentsService.checkout(user_id, payment_id);
     }
 
-    @ApiOperation({ summary: 'thanh toán đơn hàng' })
+    @ApiOperation({ summary: 'Kiểm tra trang thái đơn hàng' })
     @UseGuards(JwtAuthGuard)
     @Get('status/:payment_id')
     async status(@Req() req: Request, @Param('payment_id') payment_id: string) {
         const user_id = (req['user'] as { user_id: string }).user_id;
         return await this.paymentsService.checkStatus(payment_id, user_id);
+    }
+    @ApiOperation({ summary: 'Trạng thái đơn hàng' })
+    @UseGuards(JwtAuthGuard)
+    @Get('checkout/status/:payment_id')
+    async checkoutStatus(
+        @Req() req: Request,
+        @Param('payment_id') payment_id: string,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return await this.paymentsService.checkoutStatus(payment_id, user_id);
     }
 
     @ApiOperation({ summary: 'nhận callback' })

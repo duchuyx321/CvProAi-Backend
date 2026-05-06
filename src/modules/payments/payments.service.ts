@@ -786,6 +786,14 @@ export class PaymentsService {
             },
         };
     }
+    async checkoutStatus(id: string, user_id: string) {
+        const order = await this.getPaymentById(id, user_id);
+        const plainOrder = order.get({ plain: true });
+        return {
+            message: 'check trạng thái thành công.',
+            data: plainOrder,
+        };
+    }
     async countOrders(plan_id: string) {
         return await this.OrdersModel.count({
             where: {

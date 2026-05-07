@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Param,
+    Post,
+    Query,
+    Res,
+    UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard, RolesGuard } from '~/modules/auth/guards';
@@ -18,7 +26,7 @@ export class DashboardController {
     async getAdminDashboard(@Query() queryDashboardDto: QueryTimeDto) {
         return await this.dashboardService.getAdminDashboard(queryDashboardDto);
     }
-    @Get('export/:format')
+    @Post('export/:format')
     async export(
         @Param('format') format: ExportFormat,
         @Query() queryDashboardDto: QueryTimeDto,

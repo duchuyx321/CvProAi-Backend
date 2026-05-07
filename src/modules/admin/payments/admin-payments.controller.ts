@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    Param,
+    Patch,
+    Query,
+    UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UseRoles } from '~/common/decorators';
 import { user_role } from '~/models';
@@ -19,12 +27,12 @@ export class AdminPaymentController {
         return await this.adminPaymentsService.getAllPayments(query);
     }
     @Get(':code')
-    async getPaymentByCode(@Query('code') code: string) {
+    async getPaymentByCode(@Param('code') code: string) {
         return await this.adminPaymentsService.getPaymentByCode(code);
     }
-    @Patch('/edit/:code')
+    @Patch('/edit/:id')
     async editStatus(
-        @Query('id') id: string,
+        @Param('id') id: string,
         @Body() editPaymentDto: EditPaymentDto,
     ) {
         return await this.adminPaymentsService.editStatus(id, editPaymentDto);

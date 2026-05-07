@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
+    ForbiddenException,
     forwardRef,
     Inject,
     Injectable,
@@ -18,6 +19,7 @@ import {
 import { AuthTokenType } from '~/modules/auth-token/dto/create-authToken.dto';
 import { OtpPurpose, VerifyOTPDTO } from './dto/verify_otp.dto';
 import { SendOtpDto } from './dto/send_otp.dto';
+import { user_status } from '~/models';
 
 @Injectable()
 export class AuthService {
@@ -144,6 +146,12 @@ export class AuthService {
         );
         if (!userAlreadyExist)
             throw new NotFoundException('Email không tồn tại!');
+        if (
+            userAlreadyExist.status === user_status.BANNED ||
+            userAlreadyExist.status === user_status.DELETED
+        ) {
+            throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
+        }
         // gửi mail
         await this.sendOtp(
             userAlreadyExist.dataValues.id,

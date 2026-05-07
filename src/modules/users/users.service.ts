@@ -133,10 +133,10 @@ export class UsersService {
         email: string,
         provider: user_provider = user_provider.LOCAL,
     ) {
-        console.log('find', { email, provider });
-        return await this.UsersModel.findOne({
+        const user = await this.UsersModel.findOne({
             where: { email, provider },
         });
+        return user;
     }
     async validateUser(
         email: string,
@@ -144,11 +144,17 @@ export class UsersService {
         provider: user_provider,
     ) {
         const alreadyExists = await this.findByEmail(email, provider);
+
         if (!alreadyExists)
             throw new BadRequestException(
                 'Email hoặc mật khẩu không chính xác!',
             );
-
+        if (
+            alreadyExists.status === user_status.BANNED ||
+            alreadyExists.status === user_status.DELETED
+        ) {
+            throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
+        }
         // kiểm tra pass
         const isCorrectPassword = alreadyExists.comparePassword(password);
         if (!isCorrectPassword)
@@ -255,6 +261,15 @@ export class UsersService {
                 email_verified: true,
             });
             return { uid: newUser.data.id, role: newUser.data.role };
+        }
+        if (!alreadyExist) {
+            throw new NotFoundException('Người dùng không tồn tại.');
+        }
+        if (
+            alreadyExist.status === user_status.BANNED ||
+            alreadyExist.status === user_status.DELETED
+        ) {
+            throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
         }
         return {
             uid: alreadyExist.dataValues.id,

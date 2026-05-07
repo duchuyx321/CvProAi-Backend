@@ -18,11 +18,12 @@ import { ChangePassDto } from './dto/change-pass.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
+import { user_role } from '~/models';
 
 @ApiTags('Thông tin cá nhân')
 @Controller('profile')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseRoles('USER')
+@UseRoles(user_role.USER, user_role.ADMIN)
 export class UserProfileController {
     constructor(
         private readonly userProfileService: UserProfileService,

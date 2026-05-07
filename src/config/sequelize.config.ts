@@ -47,7 +47,9 @@ export const sequelizeConfig = (
         Auth_tokens,
         AiAddonPackages,
     ],
+
     dialectOptions: {
+        options: '-c search_path=public',
         ssl:
             configService.get<string>('DB_SSL') === 'true'
                 ? {

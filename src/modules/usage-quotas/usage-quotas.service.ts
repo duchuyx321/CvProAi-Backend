@@ -72,9 +72,6 @@ export class UsageQuotasService {
         const hasQuotaWindowChanged =
             new Date(quota.dataValues.quota_end_at).getTime() !==
             new Date(quota_end_at).getTime();
-        const hasPlanChanged =
-            quota.dataValues.ai_runs_limit !== ai_runs_limit ||
-            quota.dataValues.exports_limit !== exports_limit;
 
         if (hasQuotaWindowChanged) {
             const newQuota = await this.createUsageQuota({
@@ -95,21 +92,11 @@ export class UsageQuotasService {
             };
         }
 
-        if (hasPlanChanged) {
-            await this.updateUsageQuota(quota.dataValues.id, {
-                ai_runs_used: 0,
-                ai_runs_limit,
-                exports_used: 0,
-                exports_limit,
-            } as UpdateUsageQuotasDto);
-        }
-
         return {
             quota,
             plan,
             subscription,
             is_free_fallback,
-            was_reset: hasPlanChanged,
         };
     }
 

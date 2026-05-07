@@ -39,8 +39,9 @@ export class UserProfileService {
             data: {
                 email: planUser.email,
                 full_name: planUser.full_name,
+                role: planUser.role,
                 profile,
-                planCurren: sub.plan?.dataValues.id || sub.plan?.id,
+                planCurrent: sub.plan,
                 last_login_at: planUser.last_login_at,
                 createdAt: planUser.createdAt as Date,
                 updatedAt: planUser.updatedAt as Date,

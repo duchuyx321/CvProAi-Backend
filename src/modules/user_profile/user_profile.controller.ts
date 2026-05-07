@@ -56,10 +56,16 @@ export class UserProfileController {
             };
             avatar_url = result.url || '';
         }
-        return this.userProfileService.updateProfile(req['user'] as any, {
-            ...updateProfileDto,
-            avatar_url,
-        });
+        const payload = { ...updateProfileDto };
+        if (avatar_url?.trim()) {
+            payload.avatar_url = avatar_url;
+        } else {
+            delete payload.avatar_url;
+        }
+        return this.userProfileService.updateProfile(
+            req['user'] as any,
+            payload,
+        );
     }
 
     @ApiOperation({ summary: 'Thay đổi mật khẩu.' })

@@ -98,10 +98,6 @@ export class UsersService {
                 {
                     model: User_profile,
                 },
-                {
-                    model: Usage_quotas,
-                    attributes: { exclude: ['created_at', 'updated_at'] },
-                },
             ],
             attributes: {
                 exclude: ['password_hash'],
@@ -110,9 +106,10 @@ export class UsersService {
         if (!user) {
             throw new NotFoundException('Không tìm thầy người dùng.');
         }
+        const quota = await this.quotaService.getUsageQuotaByUserId(user_id);
         return {
             message: 'Lấy thông tin người dùng thành công',
-            data: user,
+            data: { ...user.dataValues, ...quota.quota.dataValues },
         };
     }
     async findById(user_id: string, role: string = user_role.USER) {
@@ -121,12 +118,15 @@ export class UsersService {
                 id: user_id,
                 role,
                 email_verified: true,
-                status: user_status.ACTIVE,
             },
         });
-
         if (!user) throw new NotFoundException('Không tìm thầy người dùng.');
-
+        if (
+            user.dataValues.status === user_status.DELETED ||
+            user.dataValues.status === user_status.BANNED
+        ) {
+            throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
+        }
         return user;
     }
     async findByEmail(

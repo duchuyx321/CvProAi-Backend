@@ -150,10 +150,13 @@ export class UsersService {
                 'Email hoặc mật khẩu không chính xác!',
             );
         if (
-            alreadyExists.status === user_status.BANNED ||
-            alreadyExists.status === user_status.DELETED
+            alreadyExists.dataValues.status === user_status.BANNED ||
+            alreadyExists.dataValues.status === user_status.DELETED
         ) {
-            throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
+            throw new ForbiddenException({
+                code: 'ACCOUNT_BLOCKED',
+                message: 'Tài khoản đã bị khóa hoặc đã bị xóa',
+            });
         }
         // kiểm tra pass
         const isCorrectPassword = alreadyExists.comparePassword(password);
@@ -163,8 +166,10 @@ export class UsersService {
             );
 
         if (!alreadyExists.dataValues.email_verified)
-            throw new ForbiddenException('Tài khoản chưa được xác thực email!');
-
+            throw new ForbiddenException({
+                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Tài khoản chưa được xác thực email!',
+            });
         const plainUser = alreadyExists.getUserWithoutPassword();
 
         return {
@@ -266,8 +271,8 @@ export class UsersService {
             throw new NotFoundException('Người dùng không tồn tại.');
         }
         if (
-            alreadyExist.status === user_status.BANNED ||
-            alreadyExist.status === user_status.DELETED
+            alreadyExist.dataValues.status === user_status.BANNED ||
+            alreadyExist.dataValues.status === user_status.DELETED
         ) {
             throw new ForbiddenException('Tài khoản đã bị khóa hoặc đã bị xóa');
         }

@@ -51,6 +51,55 @@ export class AiRunsService {
             growth_percent,
         };
     }
+    async getAllAiRunByUserID(
+        user_id: string,
+        limit: number,
+        page: number,
+        search?: string,
+        sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
+        sort_order: 'ASC' | 'DESC' = 'DESC',
+        fromDate?: Date,
+        toDate?: Date,
+    ) {
+        const offset = (page - 1) * limit;
+        const where: Record<string, any> = { user_id };
+        if (search?.trim()) {
+            where.cv_name = {
+                [Op.iLike]: `%${search.trim()}%`,
+            };
+        }
+        if (fromDate && toDate) {
+            where.createdAt = {
+                [Op.gte]: fromDate,
+                [Op.lt]: toDate,
+            };
+        }
+        const { count, rows } = await this.aiRunsModel.findAndCountAll({
+            where,
+            attributes: ['id', 'cv_name', 'job_title', 'status', 'createdAt'],
+            include: [
+                {
+                    model: Ai_results,
+                    as: 'ai_result',
+                    attributes: ['overall_score'],
+                    required: false,
+                },
+            ],
+            limit,
+            offset,
+            order: [[sort_by, sort_order]],
+        });
+        return {
+            data: rows,
+            meta: {
+                page,
+                limit,
+                total_items: count,
+                total_pages: Math.ceil(count / limit),
+            },
+        };
+    }
+
     async createAiRun(createAiRunDto: CreateAiRunsDto) {
         return await this.aiRunsModel.create(createAiRunDto as any);
     }

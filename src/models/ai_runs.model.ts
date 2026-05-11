@@ -109,14 +109,14 @@ export class Ai_runs extends Model<Ai_runs> {
     finished_at?: Date;
 
     @BelongsTo(() => Users)
-    user?: Users;
+    declare user?: Users;
 
     @BelongsTo(() => Cvs)
-    cv?: Cvs;
+    declare cv?: Cvs;
 
     @BelongsTo(() => Cv_versions, 'version_id')
-    cv_version?: Cv_versions;
+    declare cv_version?: Cv_versions;
 
     @HasOne(() => Ai_results)
-    ai_result?: Ai_results;
+    declare ai_result?: Ai_results;
 }

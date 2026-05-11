@@ -19,6 +19,9 @@ import { UsageQuotasService } from '~/modules/usage-quotas/usage-quotas.service'
 import { AiRunsService } from '~/modules/ai-runs/ai-runs.service';
 import { ai_run_status } from '~/models/ai_runs.model';
 import { AiResultsService } from '~/modules/ai-results/ai-results.service';
+import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
+import { DateRangeUtil } from '~/utils/date-range.util';
+import { QueryRange } from '~/common/dto/queryTime.dto';
 
 type AnalysisSourceType = 'cv' | 'jd';
 
@@ -468,5 +471,27 @@ export class AiAnalysisService {
     }
     async getAnalysisResults(user_id: string, limit: number, page: number) {
         return this.aiRunsService.getAiRuns(user_id, page, limit);
+    }
+    async getAllAnalysisByUserId(
+        user_id: string,
+        queryAnalyzeDto: QueryAnalyzeDto,
+    ) {
+        const { range, limit, page, search, sort_by, sort_order, from, to } =
+            queryAnalyzeDto;
+        const { fromDate, toExclusive } = DateRangeUtil.getDateRange(
+            from,
+            to,
+            range as QueryRange,
+        );
+        return this.aiRunsService.getAllAiRunByUserID(
+            user_id,
+            limit,
+            page,
+            search,
+            sort_by,
+            sort_order,
+            fromDate,
+            toExclusive,
+        );
     }
 }

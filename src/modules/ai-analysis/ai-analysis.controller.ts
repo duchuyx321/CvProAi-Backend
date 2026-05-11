@@ -19,6 +19,7 @@ import { AiAnalysisService } from './ai-analysis.service';
 import { documentUploadConfig } from '~/config/file-upload.config';
 import { JwtAuthGuard } from '~/modules/auth/guards';
 import { AnalyzeDto } from './dto/analyze.dto';
+import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
 
 @ApiTags('AI Analysis')
 @UseGuards(JwtAuthGuard)
@@ -117,5 +118,18 @@ export class AiAnalysisController {
     ) {
         const user_id = (req['user'] as { user_id: string }).user_id;
         return this.aiAnalysisService.getAnalysisResults(user_id, limit, page);
+    }
+
+    @Get()
+    async getAllAnalysisByUserID(
+        @Req() req: Request,
+        @Query() queryAnalyzeDto: QueryAnalyzeDto,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+
+        return await this.aiAnalysisService.getAllAnalysisByUserId(
+            user_id,
+            queryAnalyzeDto,
+        );
     }
 }

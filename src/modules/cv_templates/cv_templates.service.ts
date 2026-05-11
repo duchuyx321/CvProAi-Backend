@@ -36,7 +36,7 @@ export class CvTemplatesService {
             };
         }
         if (fromDate && toDate) {
-            where.updatedAt = {
+            where.createdAt = {
                 [Op.gte]: fromDate,
                 [Op.lt]: toDate,
             };

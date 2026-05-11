@@ -65,11 +65,11 @@ export class Cv_exports extends Model<Cv_exports> {
     created_by?: string;
 
     @BelongsTo(() => Cvs)
-    cv?: Cvs;
+    declare cv?: Cvs;
 
     @BelongsTo(() => Cv_versions, 'version_id')
-    cv_version?: Cv_versions;
+    declare cv_version?: Cv_versions;
 
     @BelongsTo(() => Users, 'created_by')
-    creator?: Users;
+    declare creator?: Users;
 }

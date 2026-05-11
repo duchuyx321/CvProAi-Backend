@@ -33,7 +33,7 @@ export class QueryTimeDto {
     to?: Date;
 
     @ApiPropertyOptional({
-        example: '7d, 30d, 90d, month, year',
+        example: '7d, 30d, month, year',
     })
     @EnumNotRequired('range', QueryRange)
     range?: string;

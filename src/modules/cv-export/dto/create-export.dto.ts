@@ -14,4 +14,8 @@ export class CreateExportDto {
     created_by!: string;
     @StringNotRequired('file_url')
     file_url?: string;
+    @StringNotRequired('html_content')
+    html_content?: string;
+    @StringNotRequired('css_content')
+    css_content?: string;
 }

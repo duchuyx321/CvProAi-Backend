@@ -369,6 +369,8 @@ export class CvsService {
                 cv_id: cvID,
                 format: export_format.PDF,
                 file_url: uploadCloudinary['url'] as string,
+                html_content: exportCvsDto.htmlText,
+                css_content: exportCvsDto.cssText,
             } as CreateExportDto);
             // tăng increase usage quota
             await this.usageQuotasService.increaseUsage(

@@ -16,6 +16,9 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { SepayWebhookDto } from './dto/payload-payment.dto';
 import { ConfigService } from '@nestjs/config';
+import { QueryPaymentDto } from './dto/query-payment.dto';
+import { DateRangeUtil } from '~/utils/date-range.util';
+import { QueryRange } from '~/common/dto/queryTime.dto';
 
 @ApiTags('cv cá nhân')
 @Controller('payments')
@@ -27,30 +30,24 @@ export class PaymentsController {
     @ApiOperation({ summary: 'danh sách đơn hàng cá nhân' })
     @UseGuards(JwtAuthGuard)
     @Get('me')
-    async getPaymentMe(
-        @Req() req: Request,
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'createdAt' | 'updatedAt' | 'title',
-        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
-    ) {
+    async getPaymentMe(@Req() req: Request, @Query() query: QueryPaymentDto) {
         const user_id = (req['user'] as { user_id: string }).user_id;
-        const allowedSortBy = ['createdAt', 'updatedAt', 'title'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updatedAt')
-            ? sort_by
-            : 'updatedAt';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
+        const { limit, page, search, sort_by, sort_order, from, range, to } =
+            query;
+        const { fromDate, toExclusive } = DateRangeUtil.getDateRange(
+            from,
+            to,
+            range as QueryRange,
+        );
         return this.paymentsService.getPaymentsMe(
             user_id,
-            Number(limit) || 8,
-            Number(page) || 1,
+            limit,
+            page,
             search,
-            finalSortBy || 'updatedAt',
-            finalSortOrder || 'DESC',
+            sort_by,
+            sort_order,
+            fromDate,
+            toExclusive,
         );
     }
 

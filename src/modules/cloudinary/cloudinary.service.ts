@@ -14,6 +14,10 @@ export class CloudinaryService {
         const folder = 'cvproai'; // Folder bạn đã đặt lúc upload
         return `${folder}/${filename}`;
     }
+    private guessResourceType(url: string): 'image' | 'raw' {
+        const isRaw = /\.(pdf|docx|zip|xlsx|txt|csv)$/i.test(url);
+        return isRaw ? 'raw' : 'image';
+    }
     private async uploadCore(
         file: Express.Multer.File,
         options: {
@@ -89,5 +93,20 @@ export class CloudinaryService {
     async deleteMultiple(publicIds: string[]) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return await Promise.all(publicIds.map((id) => this.deleteByUrl(id)));
+    }
+    async checkFileExists(url: string): Promise<boolean> {
+        try {
+            const publicId = this.extractPublicId(url);
+            await this.cloudinary.api.resource(publicId, {
+                resource_type: this.guessResourceType(url),
+            });
+            return true;
+        } catch (error: any) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            if (error?.http_code === 404 || error?.error?.http_code === 404) {
+                return false;
+            }
+            throw error;
+        }
     }
 }

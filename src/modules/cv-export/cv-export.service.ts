@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Cv_exports, Cv_versions, Cvs } from '~/models';
 import { CreateExportDto } from './dto/create-export.dto';
 import { Op, Transaction } from 'sequelize';
 import { Helper } from '~/utils/helpers';
+import puppeteer from 'puppeteer';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class CvExportService {
     constructor(
         @InjectModel(Cv_exports) private cvExportModel: typeof Cv_exports,
+        private readonly cloudinaryService: CloudinaryService,
     ) {}
     async addExport(createExportDto: CreateExportDto) {
         return await this.cvExportModel.create(createExportDto as any);
@@ -129,5 +132,82 @@ export class CvExportService {
             value: currentCvExport,
             growth_percent,
         };
+    }
+    async download(user_id: string, id: string) {
+        const cvExport = await this.cvExportModel.findOne({
+            where: {
+                created_by: user_id,
+                id,
+            },
+        });
+        if (!cvExport) {
+            throw new NotFoundException('Không tìm thấy phiên bản export');
+        }
+
+        const plain = cvExport.get({ plain: true }) as {
+            id: string;
+            file_url: string;
+            html_content?: string;
+            css_content?: string;
+        };
+
+        // 1. Nếu có file_url, kiểm tra Cloudinary còn file không
+        let finalUrl: string | null = null;
+        if (plain.file_url) {
+            const exists = await this.cloudinaryService.checkFileExists(
+                plain.file_url,
+            );
+            if (exists) {
+                finalUrl = plain.file_url;
+            }
+        }
+
+        // 2. Nếu không có URL hợp lệ, thử regenerate từ HTML/CSS
+        if (!finalUrl) {
+            if (!plain.html_content || !plain.css_content) {
+                throw new NotFoundException(
+                    'File không còn tồn tại và không thể khôi phục. Vui lòng xuất lại CV.',
+                );
+            }
+
+            const resultText = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>CvProAI</title><style>${plain.css_content}</style></head><body>${plain.html_content}</body></html>`;
+            const browser = await puppeteer.launch({
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+            try {
+                const page = await browser.newPage();
+                await page.setContent(resultText, {
+                    waitUntil: 'networkidle0',
+                });
+                await page.emulateMediaType('screen');
+                const pdf = await page.pdf({
+                    format: 'A4',
+                    printBackground: true,
+                    margin: { top: '0', right: '0', bottom: '0', left: '0' },
+                });
+
+                // Upload lại lên Cloudinary
+                const uploadResult: any =
+                    await this.cloudinaryService.uploadFile({
+                        buffer: Buffer.from(pdf),
+                        originalname: 'cv.pdf',
+                    } as Express.Multer.File);
+
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                finalUrl = uploadResult['url'] as string;
+
+                // Cập nhật file_url mới vào DB
+                await this.cvExportModel.update(
+                    { file_url: finalUrl },
+                    { where: { id: plain.id } },
+                );
+            } finally {
+                await browser.close();
+            }
+        }
+
+        // 3. Trả về URL để controller xử lý
+        return { url: finalUrl };
     }
 }

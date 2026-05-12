@@ -58,7 +58,7 @@ export class PaymentsService {
         limit: number,
         page: number,
         search?: string,
-        sort_by: 'createdAt' | 'updatedAt' | 'title' = 'updatedAt',
+        sort_by: 'createdAt' | 'updatedAt' = 'updatedAt',
         sort_order: 'ASC' | 'DESC' = 'DESC',
         fromDate?: Date,
         toDate?: Date,

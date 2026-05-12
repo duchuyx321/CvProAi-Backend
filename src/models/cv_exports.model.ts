@@ -57,6 +57,18 @@ export class Cv_exports extends Model<Cv_exports> {
     })
     file_url!: string;
 
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    html_content?: string;
+
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    css_content?: string;
+
     @ForeignKey(() => Users)
     @Column({
         type: DataType.UUID,

@@ -49,14 +49,14 @@ export class UserProfileService {
         };
     }
     async updateProfile({ user_id }, updateProfileDto: UpdateProfileDto) {
-        const { fullName, ...rest } = updateProfileDto;
+        const { full_name, ...rest } = updateProfileDto;
         const isOneField = Object.values(rest).some((value) => {
             if (value === undefined || value === null) return false;
             if (typeof value === 'string') return value.trim() !== '';
             return true;
         });
         const hasFullName =
-            typeof fullName === 'string' && fullName.trim() !== '';
+            typeof full_name === 'string' && full_name.trim() !== '';
         if (!isOneField && !hasFullName)
             throw new BadRequestException('Không có dữ liệu để cập nhật');
 
@@ -72,7 +72,7 @@ export class UserProfileService {
                 ...rest,
             } as any);
         } else if (hasFullName) {
-            await this.userService.updateFullName(user_id, fullName);
+            await this.userService.updateFullName(user_id, full_name);
         } else {
             const updated = await this.userProfileModel.update(rest as any, {
                 where: { user_id: user_id as string },

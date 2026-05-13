@@ -13,6 +13,7 @@ import {
     UploadedFiles,
     UseGuards,
     UseInterceptors,
+    Delete,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
@@ -205,5 +206,26 @@ export class CvsController {
         });
 
         return new StreamableFile(result.buffer);
+    }
+    @ApiOperation({ summary: 'Khôi phục Cv đã xóa' })
+    @Patch('delete/:id')
+    // khôi phục
+    async restore(@Param('id') id: string, @Req() req: Request) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.cvsService.restoreCvMe(user_id, id);
+    }
+    // xóa mềm
+    @ApiOperation({ summary: 'xóa mềm Cv đã xóa' })
+    @Delete('delete/:id')
+    async delete(@Param('id') id: string, @Req() req: Request) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.cvsService.deleteCvMe(user_id, id);
+    }
+
+    // xóa vĩnh viễn
+    @ApiOperation({ summary: 'xóa vĩnh viễn Cv đã xóa' })
+    async destry(@Param('id') id: string, @Req() req: Request) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.cvsService.destroyCvMe(user_id, id);
     }
 }

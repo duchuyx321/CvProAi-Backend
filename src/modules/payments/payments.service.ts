@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
     BadRequestException,
     Injectable,
@@ -64,10 +65,40 @@ export class PaymentsService {
         toDate?: Date,
     ) {
         const offset = (page - 1) * limit;
-        const where: Record<string, any> = { user_id };
+        const where: any = { user_id };
         if (search?.trim()) {
             where.order_code = { [Op.iLike]: `%${search.trim()}%` };
         }
+        if (search) {
+            where[Op.or] = [
+                {
+                    order_code: {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$user.full_name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$user.email$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$plan.name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$addonPackage.name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+            ];
+        }
+
         if (fromDate && toDate) {
             where.createdAt = {
                 [Op.gte]: fromDate,
@@ -75,6 +106,7 @@ export class PaymentsService {
             };
         }
         const { rows, count } = await this.OrdersModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
             order: [[sort_by, sort_order]],
             limit,
@@ -755,9 +787,7 @@ export class PaymentsService {
 
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             payloadQuot.quota_end_at =
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 subscription.dataValues.current_period_end ??
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 subscription.current_period_end;
         } else if (plainOrder.addon_package_id) {
             // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
@@ -951,9 +981,7 @@ export class PaymentsService {
 
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 payloadQuot.quota_end_at =
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                     subscription.dataValues.current_period_end ??
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                     subscription.current_period_end;
             } else if (plainOrder.addon_package_id) {
                 // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs

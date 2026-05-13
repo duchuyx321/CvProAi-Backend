@@ -2,7 +2,7 @@ import { ObjectNotRequired, StringNotRequired } from '~/common/decorators';
 
 export class UpdateProfileDto {
     @StringNotRequired('fullName')
-    fullName?: string;
+    full_name?: string;
     @StringNotRequired('phone')
     phone?: string;
     @StringNotRequired('avatar_url')

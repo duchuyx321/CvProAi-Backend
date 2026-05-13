@@ -32,8 +32,12 @@ export class UsageQuotasService {
             (plan?.ai_limit || plan?.dataValues.ai_limit) ?? 0,
         );
         const exports_limit = Number(
-            (plan?.ai_limit || plan?.dataValues.ai_limit) ?? 0,
+            plan?.export_limit ?? plan?.dataValues?.export_limit ?? 0,
         );
+        const cvs_limit = Number(
+            plan?.cv_limit ?? plan?.dataValues?.cv_limit ?? 0,
+        );
+
         const quota_end_at =
             subscription?.current_period_end ?? this.getEndOfCurrentMonth(now);
 
@@ -57,6 +61,8 @@ export class UsageQuotasService {
                 ai_runs_limit,
                 exports_used: 0,
                 exports_limit,
+                cvs_limit,
+                cvs_used: 0,
                 user_id,
             } as CreateUsageQuotasDto);
 

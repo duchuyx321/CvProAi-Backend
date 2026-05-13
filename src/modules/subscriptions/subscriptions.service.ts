@@ -72,13 +72,26 @@ export class SubscriptionsService {
             default:
                 throw new BadRequestException('Chu kỳ gói không hợp lệ');
         }
-        return await this.subscriptionsModel.create({
+        const existingSubscription = await this.subscriptionsModel.findOne({
+            where: { user_id },
+        });
+
+        const payload = {
             order_id,
             plan_id,
             user_id,
+            status: subscription_status.ACTIVE,
             current_period_start,
             current_period_end,
-        } as any);
+            cancel_at_period_end: false,
+            canceled_at: null,
+        };
+
+        if (existingSubscription) {
+            return await existingSubscription.update(payload as any);
+        }
+
+        return await this.subscriptionsModel.create(payload as any);
     }
 
     async countSubscriptions(plan_id: string) {

@@ -66,9 +66,6 @@ export class PaymentsService {
     ) {
         const offset = (page - 1) * limit;
         const where: any = { user_id };
-        if (search?.trim()) {
-            where.order_code = { [Op.iLike]: `%${search.trim()}%` };
-        }
         if (search) {
             where[Op.or] = [
                 {
@@ -158,9 +155,35 @@ export class PaymentsService {
         toDate?: Date,
     ) {
         const offset = (page - 1) * limit;
-        const where: Record<string, any> = {};
-        if (search?.trim()) {
-            where.order_code = { [Op.iLike]: `%${search.trim()}%` };
+        const where: any = {};
+        if (search) {
+            where[Op.or] = [
+                {
+                    order_code: {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$user.full_name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$user.email$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$plan.name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$addonPackage.name$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+            ];
         }
         if (fromDate && toDate) {
             where.updatedAt = {
@@ -169,6 +192,7 @@ export class PaymentsService {
             };
         }
         const { rows, count } = await this.OrdersModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
             order: [[sort_by, sort_order]],
             limit,

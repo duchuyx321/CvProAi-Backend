@@ -22,7 +22,7 @@ import { AnalyzeDto } from './dto/analyze.dto';
 import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
 
 @ApiTags('AI Analysis')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 @Controller('ai-analysis')
 export class AiAnalysisController {
     constructor(private readonly aiAnalysisService: AiAnalysisService) {}
@@ -71,7 +71,36 @@ export class AiAnalysisController {
             jd_file,
         };
     }
+    @Get('result/:ai_run_id')
+    async getAnalysisResult(
+        @Req() req: Request,
+        @Param('ai_run_id') ai_run_id: string,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.aiAnalysisService.getAnalysisResult(user_id, ai_run_id);
+    }
+    @Get('results')
+    async getAnalysisResults(
+        @Req() req: Request,
+        @Query('page') page: number = 1,
+        @Query('limit') limit: number = 10,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.aiAnalysisService.getAnalysisResults(user_id, limit, page);
+    }
 
+    @Get()
+    async getAllAnalysisByUserID(
+        @Req() req: Request,
+        @Query() queryAnalyzeDto: QueryAnalyzeDto,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+
+        return await this.aiAnalysisService.getAllAnalysisByUserId(
+            user_id,
+            queryAnalyzeDto,
+        );
+    }
     @Post('analyze')
     @UseInterceptors(
         FileFieldsInterceptor(
@@ -102,34 +131,17 @@ export class AiAnalysisController {
 
         return this.aiAnalysisService.AnalyzeResults(user_id, validatedInput);
     }
-    @Get('result/:ai_run_id')
-    async getAnalysisResult(
+    @Post('rewrite-proposals/:aiRun_id')
+    async rewriteProposals(
         @Req() req: Request,
-        @Param('ai_run_id') ai_run_id: string,
+        @Param('aiRun_id') aiRun_id: string,
+        @Query('user_id') user_id: string,
     ) {
-        const user_id = (req['user'] as { user_id: string }).user_id;
-        return this.aiAnalysisService.getAnalysisResult(user_id, ai_run_id);
-    }
-    @Get('results')
-    async getAnalysisResults(
-        @Req() req: Request,
-        @Query('page') page: number = 1,
-        @Query('limit') limit: number = 10,
-    ) {
-        const user_id = (req['user'] as { user_id: string }).user_id;
-        return this.aiAnalysisService.getAnalysisResults(user_id, limit, page);
-    }
-
-    @Get()
-    async getAllAnalysisByUserID(
-        @Req() req: Request,
-        @Query() queryAnalyzeDto: QueryAnalyzeDto,
-    ) {
-        const user_id = (req['user'] as { user_id: string }).user_id;
-
-        return await this.aiAnalysisService.getAllAnalysisByUserId(
+        console.log(user_id, aiRun_id);
+        // const user_id = (req['user'] as { user_id: string }).user_id;
+        return this.aiAnalysisService.generateRewriteSuggestions(
             user_id,
-            queryAnalyzeDto,
+            aiRun_id,
         );
     }
 }

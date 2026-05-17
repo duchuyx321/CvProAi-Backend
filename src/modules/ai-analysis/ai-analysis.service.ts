@@ -10,29 +10,50 @@ import mammoth from 'mammoth';
 import { PDFParse } from 'pdf-parse';
 import {
     buildCvJdAnalysisUserPrompt,
+    buildInternalCvRewritePrompt,
+    buildUploadedCvImportAndRewritePrompt,
     CV_JD_ANALYSIS_JSON_SCHEMA,
     CV_JD_ANALYSIS_SYSTEM_PROMPT,
+    CV_JD_WRITE_INTERNAL_JSON_SCHEMA,
+    CV_JD_WRITE_SYSTEM_PROMPT,
+    CV_JD_WRITE_UPLOADED_JSON_SCHEMA,
 } from '~/config/promptAnalyze.config';
 
 import { CvsService } from '~/modules/cvs/cvs.service';
 import { UsageQuotasService } from '~/modules/usage-quotas/usage-quotas.service';
 import { AiRunsService } from '~/modules/ai-runs/ai-runs.service';
-import { ai_run_status } from '~/models/ai_runs.model';
+import { ai_run_status, AiCvSourceType } from '~/models/ai_runs.model';
 import { AiResultsService } from '~/modules/ai-results/ai-results.service';
 import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
 import { DateRangeUtil } from '~/utils/date-range.util';
 import { QueryRange } from '~/common/dto/queryTime.dto';
-
-type AnalysisSourceType = 'cv' | 'jd';
-
-type ParsedAnalysisDocument = {
-    sourceType: AnalysisSourceType;
-    fileName?: string;
-    mimeType?: string;
-    contentMarkdown: string;
-    contentText: string;
+import {
+    AnalysisSourceType,
+    buildDocument,
+    buildRawTextDocument,
+    cleanExtractedPdfText,
+    extractJobTitleFromJdText,
+    getBaseFileName,
+    normalizeAiRunLabel,
+    normalizeRewriteProposals,
+    normalizeText,
+    ParsedAnalysisDocument,
+} from './ai-analysis.util';
+import {
+    AiRewriteStatus,
+    AiStructuredFeedbackDto,
+} from '../ai-results/dto/create-ai-results.dto';
+type AiRewriteSuggestionsParsed = {
+    cv_content?: Record<string, unknown>;
+    rewrite_proposals?: Record<string, unknown>[];
 };
 
+type AiRewriteSuggestionsResult = {
+    model: string;
+    rawText: string;
+    parsed: AiRewriteSuggestionsParsed;
+    usageMetadata: unknown;
+};
 @Injectable()
 export class AiAnalysisService {
     constructor(
@@ -42,91 +63,6 @@ export class AiAnalysisService {
         private readonly aiRunsService: AiRunsService,
         private readonly aiResultsService: AiResultsService,
     ) {}
-
-    private normalizeText(value?: string | null): string {
-        return String(value ?? '')
-            .replace(/\r\n/g, '\n')
-            .replace(/\r/g, '\n')
-            .replace(/[ \t]+\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-    private cleanExtractedPdfText(value: string): string {
-        return this.normalizeText(value)
-            .replace(/[]/g, '')
-            .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, '')
-            .replace(/©\s*topcv\.vn/gi, '')
-            .replace(/Powered by TCPDF\s*\(www\.tcpdf\.org\)/gi, '')
-            .replace(/^\s*•\s*$/gm, '')
-            .replace(/[ \t]{2,}/g, ' ')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-    private markdownToPlainText(markdown: string): string {
-        return markdown
-            .replace(/^#{1,6}\s+/gm, '')
-            .replace(/^\s*[-*+]\s+/gm, '')
-            .replace(/^\s*\d+\.\s+/gm, '')
-            .replace(/\*\*(.*?)\*\*/g, '$1')
-            .replace(/\*(.*?)\*/g, '$1')
-            .replace(/`(.*?)`/g, '$1')
-            .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-    }
-
-    private normalizeAiRunLabel(value?: string | null): string | undefined {
-        const normalized = this.normalizeText(value);
-
-        if (!normalized) {
-            return undefined;
-        }
-
-        return normalized.slice(0, 255).trim();
-    }
-
-    private getBaseFileName(fileName?: string | null): string | undefined {
-        const normalized = this.normalizeAiRunLabel(fileName);
-
-        if (!normalized) {
-            return undefined;
-        }
-
-        return this.normalizeAiRunLabel(normalized.replace(/\.[^/.]+$/, ''));
-    }
-
-    private extractJobTitleFromJdText(
-        jdText?: string | null,
-    ): string | undefined {
-        const normalized = this.normalizeText(jdText);
-
-        if (!normalized) {
-            return undefined;
-        }
-
-        const firstMeaningfulLine = normalized
-            .split('\n')
-            .map((line) => line.trim())
-            .find(Boolean);
-
-        return this.normalizeAiRunLabel(firstMeaningfulLine);
-    }
-
-    private buildDocument(
-        sourceType: AnalysisSourceType,
-        contentMarkdown: string,
-        meta?: Partial<ParsedAnalysisDocument>,
-    ): ParsedAnalysisDocument {
-        const normalizedMarkdown = this.normalizeText(contentMarkdown);
-
-        return {
-            sourceType,
-            fileName: meta?.fileName,
-            mimeType: meta?.mimeType,
-            contentMarkdown: normalizedMarkdown,
-            contentText: this.markdownToPlainText(normalizedMarkdown),
-        };
-    }
 
     private async buildInternalCvAnalysisDocument(
         user_id: string,
@@ -204,16 +140,9 @@ export class AiAnalysisService {
             lines.push('');
         }
 
-        return this.buildDocument('cv', lines.join('\n'), {
+        return buildDocument('cv', lines.join('\n'), {
             fileName: cv?.data?.dataValues?.title,
         });
-    }
-
-    private buildRawTextDocument(
-        sourceType: AnalysisSourceType,
-        rawText: string,
-    ): ParsedAnalysisDocument {
-        return this.buildDocument(sourceType, rawText);
     }
 
     private async extractTextFromPdf(buffer: Buffer): Promise<string> {
@@ -221,12 +150,12 @@ export class AiAnalysisService {
         const result = await parser.getText();
         await parser.destroy();
 
-        return this.cleanExtractedPdfText(result.text || '');
+        return cleanExtractedPdfText(result.text || '');
     }
 
     private async extractTextFromDocx(buffer: Buffer): Promise<string> {
         const result = await mammoth.extractRawText({ buffer });
-        return this.normalizeText(result.value || '');
+        return normalizeText(result.value || '');
     }
 
     private async parseUploadedDocument(
@@ -239,7 +168,7 @@ export class AiAnalysisService {
         let extractedText = '';
 
         if (mimeType === 'text/plain') {
-            extractedText = this.normalizeText(file.buffer.toString('utf-8'));
+            extractedText = normalizeText(file.buffer.toString('utf-8'));
         } else if (mimeType === 'application/pdf') {
             extractedText = await this.extractTextFromPdf(file.buffer);
         } else if (
@@ -260,7 +189,7 @@ export class AiAnalysisService {
             );
         }
 
-        return this.buildDocument(sourceType, extractedText, {
+        return buildDocument(sourceType, extractedText, {
             fileName,
             mimeType,
         });
@@ -288,7 +217,7 @@ export class AiAnalysisService {
         jd_file?: Express.Multer.File;
     }): Promise<ParsedAnalysisDocument> {
         if (payload.jd_text?.trim()) {
-            return this.buildRawTextDocument('jd', payload.jd_text);
+            return buildRawTextDocument('jd', payload.jd_text);
         }
 
         if (payload.jd_file) {
@@ -396,20 +325,33 @@ export class AiAnalysisService {
             this.resolveCvDocument(user_id, { cv_id, cv_file }),
             this.resolveJdDocument({ jd_text, jd_file }),
         ]);
+        const cvSourceType = cv_id
+            ? AiCvSourceType.INTERNAL
+            : AiCvSourceType.UPLOADED;
+        const cvContent =
+            cvSourceType === AiCvSourceType.UPLOADED
+                ? cvDocument.contentText
+                : null;
+        const jdContent = jdDocument.contentText;
+
         const cvName =
-            this.getBaseFileName(cvDocument.fileName) ??
-            this.normalizeAiRunLabel(cvDocument.fileName);
+            getBaseFileName(cvDocument.fileName) ??
+            normalizeAiRunLabel(cvDocument.fileName);
         const jobTitle =
-            this.extractJobTitleFromJdText(jd_text) ??
-            this.getBaseFileName(jdDocument.fileName) ??
-            this.normalizeAiRunLabel(jdDocument.fileName);
+            extractJobTitleFromJdText(jd_text) ??
+            getBaseFileName(jdDocument.fileName) ??
+            normalizeAiRunLabel(jdDocument.fileName);
         // cập nhật trạng thái đang chờ sử lý ai
         const aiRun = await this.aiRunsService.createAiRun({
             user_id,
             status: ai_run_status.RUNNING,
-            cv_id: cv_id as string,
             cv_name: cvName,
             job_title: jobTitle,
+            cv_id: cvSourceType === AiCvSourceType.INTERNAL ? cv_id : null,
+
+            cv_source_type: cvSourceType,
+            cv_content: cvContent,
+            jd_content: jdContent,
         });
         const result = await this.callAIApiResult(
             aiRun.dataValues.id,
@@ -493,5 +435,206 @@ export class AiAnalysisService {
             fromDate,
             toExclusive,
         );
+    }
+
+    // nhận gợi ý
+    async generateRewriteSuggestions(user_id: string, ai_run_id: string) {
+        // kiểm tra người dùng là free hay premium
+        const quotaLimit =
+            await this.usageQuotasService.getUsageQuotaByUserId(user_id);
+        const quotaLimitPlan = quotaLimit.plan?.dataValues;
+        const aiRun = await this.aiRunsService.getAiRunById(ai_run_id, user_id);
+        if (
+            quotaLimitPlan?.slug === 'free' &&
+            aiRun.dataValues.cv_source_type === AiCvSourceType.INTERNAL
+        ) {
+            return {
+                message: 'Lấy dữ liệu thành công',
+                data: {
+                    detailCv: aiRun.dataValues.cv_id,
+                },
+            };
+        }
+        if (
+            quotaLimitPlan?.slug === 'free' &&
+            aiRun.dataValues.cv_source_type === AiCvSourceType.UPLOADED
+        ) {
+            throw new BadRequestException(
+                'Vui lòng nâng cấp tài khoản để sử dụng chức năng chuyển đổi CV vào hệ thống.',
+            );
+        }
+        if (
+            quotaLimit.quota.dataValues.ai_runs_used >=
+            quotaLimit.quota.dataValues.ai_runs_limit
+        ) {
+            throw new BadRequestException('Bạn đã hết lượt phân tích ai.');
+        }
+
+        const aiResult = await this.aiResultsService.getRawAiResultByAiRunId(
+            aiRun.dataValues.id,
+        );
+        const structuredFeedback: AiStructuredFeedbackDto =
+            aiResult.dataValues.structured_feedback ?? {};
+
+        const existingProposals = structuredFeedback?.rewrite_proposals ?? [];
+
+        const pendingProposals = existingProposals.filter(
+            (item) => item.status === AiRewriteStatus.PENDING,
+        );
+        if (pendingProposals.length > 0) {
+            return {
+                message: 'Lấy dữ liệu thành công',
+                data: {
+                    detailCv: aiRun.dataValues.cv_id,
+                },
+            };
+        }
+        const jdContent = aiRun.dataValues.jd_content;
+        if (!jdContent) {
+            throw new BadRequestException(
+                'Không tìm thấy nội dung JD để tạo gợi ý tối ưu.',
+            );
+        }
+        let prompt: string;
+        let responseSchema:
+            | typeof CV_JD_WRITE_INTERNAL_JSON_SCHEMA
+            | typeof CV_JD_WRITE_UPLOADED_JSON_SCHEMA;
+        if (aiRun.dataValues.cv_source_type === AiCvSourceType.INTERNAL) {
+            if (!aiRun.dataValues.cv_id) {
+                throw new BadRequestException(
+                    'Không tìm thấy CV trong hệ thống.',
+                );
+            }
+
+            const cv = await this.cvsService.getCvMeByID(
+                user_id,
+                aiRun.dataValues.cv_id,
+            );
+
+            const cvContent = cv?.data?.dataValues?.content;
+
+            if (!cvContent) {
+                throw new BadRequestException(
+                    'Không tìm thấy nội dung CV trong hệ thống.',
+                );
+            }
+
+            prompt = buildInternalCvRewritePrompt({
+                cvContent,
+                jdContent,
+                analysisResult: aiResult.dataValues,
+            });
+
+            responseSchema = CV_JD_WRITE_INTERNAL_JSON_SCHEMA;
+        } else if (
+            aiRun.dataValues.cv_source_type === AiCvSourceType.UPLOADED
+        ) {
+            const cvText = aiRun.dataValues.cv_content;
+
+            if (!cvText) {
+                throw new BadRequestException(
+                    'Không tìm thấy nội dung CV upload để tạo gợi ý tối ưu.',
+                );
+            }
+
+            prompt = buildUploadedCvImportAndRewritePrompt({
+                cvText,
+                jdContent,
+                analysisResult: aiResult.dataValues,
+            });
+
+            responseSchema = CV_JD_WRITE_UPLOADED_JSON_SCHEMA;
+        } else {
+            throw new BadRequestException('Nguồn CV không hợp lệ.');
+        }
+        const rewriteResult = await this.callAIRewriteSuggestions({
+            prompt,
+            systemPrompt: CV_JD_WRITE_SYSTEM_PROMPT,
+            responseSchema,
+        });
+
+        const rewriteProposals = normalizeRewriteProposals(
+            rewriteResult.parsed.rewrite_proposals ?? [],
+        );
+
+        const nextStructuredFeedback = {
+            ...structuredFeedback,
+            rewrite_proposals: rewriteProposals,
+        };
+
+        // await this.aiResultsService.update(aiResult.dataValues.id, {
+        //     structured_feedback: nextStructuredFeedback,
+        // });
+
+        return {
+            message: 'Tạo gợi ý tối ưu thành công.',
+            data: {
+                nextStructuredFeedback,
+                cv_content: rewriteResult.parsed.cv_content,
+            },
+        };
+    }
+
+    async callAIRewriteSuggestions({
+        prompt,
+        systemPrompt,
+        responseSchema,
+    }: {
+        prompt: string;
+        systemPrompt: string;
+        responseSchema: unknown;
+    }): Promise<AiRewriteSuggestionsResult> {
+        const apiKey = this.configService.get<string>(
+            'GEMINI_API_KEY',
+        ) as string;
+
+        const model = this.configService.get<string>('AI_MODEL') as string;
+
+        const provider = this.configService.get<string>(
+            'AI_PROVIDER',
+        ) as string;
+
+        if (provider !== 'gemini') {
+            throw new InternalServerErrorException(
+                `AI_PROVIDER không hỗ trợ: ${provider}`,
+            );
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+
+        try {
+            const response = await ai.models.generateContent({
+                model,
+                contents: prompt,
+                config: {
+                    systemInstruction: systemPrompt,
+                    responseMimeType: 'application/json',
+                    responseJsonSchema: responseSchema,
+                },
+            });
+
+            const text = response.text;
+
+            if (!text) {
+                throw new InternalServerErrorException(
+                    'Gemini không trả về nội dung gợi ý chỉnh sửa.',
+                );
+            }
+
+            const parsed = JSON.parse(text) as AiRewriteSuggestionsParsed;
+
+            return {
+                model,
+                rawText: text,
+                parsed,
+                usageMetadata: response.usageMetadata ?? null,
+            };
+        } catch (error) {
+            console.error('callAIRewriteSuggestions error:', error);
+
+            throw new InternalServerErrorException(
+                'Không thể gọi Gemini để tạo gợi ý chỉnh sửa CV.',
+            );
+        }
     }
 }

@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/sequelize';
 import { Ai_results } from '~/models';
 import { CreateAiResultsDto } from './dto/create-ai-results.dto';
 import { Transaction } from 'sequelize';
+import { UpdateAiResultDto } from './dto/update-aiResult';
 
 type LockedMeta = {
     visible_count: number;
@@ -42,6 +43,11 @@ export class AiResultsService {
     async create(createAiResultsDto: CreateAiResultsDto) {
         return await this.aiResultsModel.create(createAiResultsDto as any);
     }
+    async update(ai_run_id: string, updateDto: UpdateAiResultDto) {
+        return await this.aiResultsModel.update(updateDto, {
+            where: { ai_run_id },
+        });
+    }
     async getAiResultByAiRunId(
         ai_run_id: string,
         view_full_ai_analysis: boolean,
@@ -79,7 +85,17 @@ export class AiResultsService {
             created_at: result.dataValues.createdAt,
         };
     }
+    async getRawAiResultByAiRunId(ai_run_id: string) {
+        const result = await this.aiResultsModel.findOne({
+            where: { ai_run_id },
+        });
 
+        if (!result) {
+            throw new NotFoundException('Không tìm thấy kết quả AI');
+        }
+
+        return result;
+    }
     async destroyByAiRun(aiRunIds: string[], transaction?: Transaction) {
         await this.aiResultsModel.destroy({
             where: {

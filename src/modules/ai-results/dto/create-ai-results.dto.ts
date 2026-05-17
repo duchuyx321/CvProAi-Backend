@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Type } from 'class-transformer';
 import {
     IsArray,
+    IsBoolean,
     IsObject,
     IsOptional,
     IsString,
@@ -57,6 +57,21 @@ export enum AiRewriteStatus {
     APPLIED = 'applied',
     REJECTED = 'rejected',
 }
+
+type AiRewriteProposalCondition = {
+    action?: AiRewriteAction;
+};
+
+const isAddAction = (object: AiRewriteProposalCondition): boolean =>
+    object.action === AiRewriteAction.ADD;
+
+const isReplaceOrRemoveAction = (object: AiRewriteProposalCondition): boolean =>
+    object.action === AiRewriteAction.REPLACE ||
+    object.action === AiRewriteAction.REMOVE;
+
+const isReplaceOrAddAction = (object: AiRewriteProposalCondition): boolean =>
+    object.action === AiRewriteAction.REPLACE ||
+    object.action === AiRewriteAction.ADD;
 
 export class WeaknessEvidenceDto {
     @StringRequired('jd')
@@ -122,47 +137,34 @@ export class AiRewriteProposalDto {
     /**
      * Đường dẫn tới vị trí trong JSON content của CV.
      * Ví dụ:
-     * summary
-     * experience[0].bullets[1]
-     * projects[0].description
-     * skills[3]
+     * SUMMARY
+     * EXPERIENCE[0].description
+     * SKILLS[1].name
+     * EDUCATION[0].degree
      */
     @IsOptional()
     @IsString()
     target_path?: string;
 
     /**
-     * Dùng cho action ADD.
-     * Ví dụ:
-     * - append vào cuối mảng bullets
-     * - prepend vào đầu mảng skills
-     * - before/after một target_path cụ thể
+     * Chỉ bắt buộc với action ADD.
      */
-    @ValidateIf((o) => o.action === AiRewriteAction.ADD)
+    @ValidateIf(isAddAction)
     @EnumRequired('insert_position', AiInsertPosition)
     insert_position?: AiInsertPosition;
 
     /**
      * Bắt buộc với REPLACE và REMOVE.
-     * Dùng để backend check tránh sửa/xóa nhầm nếu CV đã thay đổi.
+     * Dùng để backend check tránh sửa/xóa nhầm.
      */
-    @ValidateIf(
-        (o) =>
-            o.action === AiRewriteAction.REPLACE ||
-            o.action === AiRewriteAction.REMOVE,
-    )
+    @ValidateIf(isReplaceOrRemoveAction)
     @StringRequired('old_text')
     old_text?: string;
 
     /**
      * Bắt buộc với REPLACE và ADD.
-     * REMOVE thì không cần new_text.
      */
-    @ValidateIf(
-        (o) =>
-            o.action === AiRewriteAction.REPLACE ||
-            o.action === AiRewriteAction.ADD,
-    )
+    @ValidateIf(isReplaceOrAddAction)
     @StringRequired('new_text')
     new_text?: string;
 
@@ -172,15 +174,11 @@ export class AiRewriteProposalDto {
     @EnumRequired('severity', AiSeverity)
     severity!: AiSeverity;
 
-    /**
-     * Điểm cải thiện ước tính nếu áp dụng proposal này.
-     */
     @NumberNotRequired('estimated_score_gain')
     estimated_score_gain?: number;
 
     /**
-     * Trạng thái proposal.
-     * Khi AI mới sinh ra thì mặc định là pending.
+     * Mặc định khi AI sinh ra là pending.
      * Khi user apply thì đổi thành applied.
      * Khi user bỏ qua thì đổi thành rejected.
      */
@@ -188,9 +186,7 @@ export class AiRewriteProposalDto {
     status?: AiRewriteStatus = AiRewriteStatus.PENDING;
 
     /**
-     * Dùng để tránh hiển thị lại proposal đã từng apply,
-     * đặc biệt khi user gọi AI rewrite nhiều lần.
-     * Hash có thể tạo từ:
+     * Backend có thể tự tạo hash từ:
      * action + target_path + old_text + new_text
      */
     @IsOptional()
@@ -213,7 +209,7 @@ export class AiStructuredFeedbackDto {
     @IsOptional()
     @IsArray()
     @IsObject({ each: true })
-    section_feedback?: Record<string, any>[];
+    section_feedback?: Record<string, unknown>[];
 
     /**
      * Dùng cho Free user:
@@ -221,11 +217,21 @@ export class AiStructuredFeedbackDto {
      */
     @IsOptional()
     @IsObject()
-    locked_summary?: Record<string, any>;
+    locked_summary?: Record<string, unknown>;
+
+    /**
+     * Dùng cho CV upload ngoài.
+     * Khi user Premium bấm nhận gợi ý chỉnh sửa,
+     * AI sẽ convert cv_text thành content đúng schema CVContent
+     * rồi lưu vào structured_feedback.cv_content.
+     */
+    @IsOptional()
+    @IsObject()
+    cv_content?: Record<string, unknown>;
 
     /**
      * Có thể lưu duplicate weaknesses vào đây nếu muốn gom toàn bộ structured data.
-     * Nhưng nếu đã lưu top-level weaknesses thì không bắt buộc dùng field này.
+     * Nếu đã lưu top-level weaknesses thì không bắt buộc dùng field này.
      */
     @IsOptional()
     @IsArray()
@@ -268,51 +274,50 @@ export class CreateAiResultsDto {
     @IsOptional()
     @IsArray()
     @IsObject({ each: true })
-    suggestions?: Record<string, any>[];
+    suggestions?: Record<string, unknown>[];
 
     @IsOptional()
     @IsArray()
     @IsObject({ each: true })
-    strengths?: Record<string, any>[];
+    strengths?: Record<string, unknown>[];
 
     /**
-     * Proposal chỉnh sửa cụ thể.
-     * Có thể dùng field này để nhận từ API,
-     * sau đó service merge vào structured_feedback.rewrite_proposals.
+     * structured_feedback là nơi lưu dữ liệu mở rộng:
+     * - section_feedback
+     * - locked_summary
+     * - cv_content nếu CV upload ngoài
+     * - rewrite_proposals khi Premium bấm nhận gợi ý chỉnh sửa
      */
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => AiRewriteProposalDto)
-    rewrite_proposals?: AiRewriteProposalDto[];
-
-    //Sửa lại chỗ cũ:
-    //structured_feedback không nên là array nếu type là object.
-
     @IsOptional()
     @ValidateNested()
     @Type(() => AiStructuredFeedbackDto)
     structured_feedback?: AiStructuredFeedbackDto;
 }
 
-//DTO dùng khi user apply từng proposal hoặc apply toàn bộ.
-
+/**
+ * DTO dùng khi user apply từng proposal hoặc apply toàn bộ.
+ */
 export class ApplyAiRewriteProposalsDto {
-    //Nếu apply_all = true thì không cần proposal_ids.
-
+    /**
+     * Nếu apply_all = true thì không cần proposal_ids.
+     */
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
     proposal_ids?: string[];
 
-    //true: apply tất cả proposal đang pending.
-    //false hoặc không truyền: apply theo proposal_ids.
-
+    /**
+     * true: apply tất cả proposal đang pending.
+     * false hoặc không truyền: apply theo proposal_ids.
+     */
     @IsOptional()
+    @IsBoolean()
     apply_all?: boolean;
 }
 
-//DTO dùng khi user bỏ qua / reject một hoặc nhiều proposal.
+/**
+ * DTO dùng khi user bỏ qua / reject một hoặc nhiều proposal.
+ */
 export class RejectAiRewriteProposalsDto {
     @IsArray()
     @IsString({ each: true })

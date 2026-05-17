@@ -20,7 +20,7 @@ import { QueryPaymentDto } from './dto/query-payment.dto';
 import { DateRangeUtil } from '~/utils/date-range.util';
 import { QueryRange } from '~/common/dto/queryTime.dto';
 
-@ApiTags('cv cá nhân')
+@ApiTags('Thanh Toán Nâng Cấp tài khoản')
 @Controller('payments')
 export class PaymentsController {
     constructor(

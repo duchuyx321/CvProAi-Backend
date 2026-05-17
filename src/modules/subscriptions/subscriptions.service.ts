@@ -35,7 +35,6 @@ export class SubscriptionsService {
                 ['createdAt', 'DESC'],
             ],
         });
-
         if (subscription) {
             return {
                 subscription,

@@ -17,6 +17,10 @@ export enum ai_run_status {
     SUCCESS = 'SUCCESS',
     FAILED = 'FAILED',
 }
+export enum AiCvSourceType {
+    INTERNAL = 'internal',
+    UPLOADED = 'uploaded',
+}
 
 @Table({
     tableName: 'ai_runs',
@@ -44,7 +48,7 @@ export class Ai_runs extends Model<Ai_runs> {
         type: DataType.UUID,
         allowNull: true,
     })
-    cv_id?: string;
+    cv_id?: string | null;
 
     @ForeignKey(() => Cv_versions)
     @Column({
@@ -107,6 +111,24 @@ export class Ai_runs extends Model<Ai_runs> {
         allowNull: true,
     })
     finished_at?: Date;
+    @Column({
+        type: DataType.ENUM(...Object.values(AiCvSourceType)),
+        allowNull: false,
+        defaultValue: AiCvSourceType.INTERNAL,
+    })
+    cv_source_type!: AiCvSourceType;
+
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    cv_content?: string | null;
+
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+    })
+    jd_content?: string | null;
 
     @BelongsTo(() => Users)
     declare user?: Users;

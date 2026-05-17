@@ -488,14 +488,16 @@ export class PaymentsService {
                 if (!dtoAddonId) {
                     throw new BadRequestException('Thiếu addon_package_id');
                 }
-
                 if (is_free_fallback || !subscription) {
                     throw new BadRequestException(
                         'Bạn cần nâng cấp gói trước khi mua thêm lượt phân tích AI',
                     );
                 }
-
-                if (!currentPlan?.can_purchase_ai_addon) {
+                const isPurchase_ai_addon: boolean =
+                    currentPlan?.dataValues.can_purchase_ai_addon ||
+                    currentPlan?.can_purchase_ai_addon ||
+                    false;
+                if (!isPurchase_ai_addon) {
                     throw new BadRequestException(
                         'Gói hiện tại không được phép mua thêm lượt phân tích AI',
                     );
@@ -505,10 +507,10 @@ export class PaymentsService {
                     await this.aiAddonPackagesService.getAiAddonPackagesById(
                         dtoAddonId,
                     );
-
-                amount_cents = Number(addOn.price);
-                description = `Thanh toán ${addOn.name}`;
-                addon_package_id = addOn.id;
+                const plainAddOn = addOn.get({ plain: true });
+                amount_cents = Number(plainAddOn.price);
+                description = `Thanh toán ${plainAddOn.name}`;
+                addon_package_id = plainAddOn.id;
                 break;
             }
 

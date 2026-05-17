@@ -5,14 +5,14 @@ import {
     StringNotRequired,
     StringRequired,
 } from '~/common/decorators';
-import { ai_run_status } from '~/models/ai_runs.model';
+import { ai_run_status, AiCvSourceType } from '~/models/ai_runs.model';
 
 export class CreateAiRunsDto {
     @StringRequired('user_id')
     user_id!: string;
 
     @StringRequired('cv_id')
-    cv_id!: string;
+    cv_id?: string | null;
 
     @StringNotRequired('version_id')
     version_id?: string;
@@ -42,4 +42,12 @@ export class CreateAiRunsDto {
 
     @DateNotRequired('finished_at')
     finished_at?: Date;
+
+    @EnumNotRequired('cv_source_type', AiCvSourceType)
+    cv_source_type?: AiCvSourceType;
+
+    @StringNotRequired('version_id')
+    cv_content?: string | null;
+    @StringNotRequired('version_id')
+    jd_content?: string | null;
 }

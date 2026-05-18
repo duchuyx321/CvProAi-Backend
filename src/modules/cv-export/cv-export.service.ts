@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Cv_exports, Cv_versions, Cvs } from '~/models';
@@ -30,11 +31,25 @@ export class CvExportService {
         toDate?: Date,
     ) {
         const offset = (page - 1) * limit;
-        const where: Record<string, any> = { created_by: user_id };
+        const where: any = { created_by: user_id };
         if (search?.trim()) {
-            where.cv_name = {
-                [Op.iLike]: `%${search.trim()}%`,
-            };
+            where[Op.or] = [
+                {
+                    cv_name: {
+                        [Op.iLike]: `%${search.trim()}%`,
+                    },
+                },
+                {
+                    '$cv.title$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+                {
+                    '$cv.slug$': {
+                        [Op.iLike]: `%${search}%`,
+                    },
+                },
+            ];
         }
         if (fromDate && toDate) {
             where.createdAt = {
@@ -43,6 +58,7 @@ export class CvExportService {
             };
         }
         const { count, rows } = await this.cvExportModel.findAndCountAll({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
             include: [
                 {
@@ -50,26 +66,10 @@ export class CvExportService {
                     as: 'cv',
                     attributes: ['id', 'title', 'slug'],
                     required: !!search,
-                    where: search
-                        ? {
-                              [Op.or]: [
-                                  {
-                                      title: {
-                                          [Op.iLike]: `%${search}%`,
-                                      },
-                                  },
-                                  {
-                                      slug: {
-                                          [Op.iLike]: `%${search}%`,
-                                      },
-                                  },
-                              ],
-                          }
-                        : undefined,
                 },
                 {
                     model: Cv_versions,
-                    as: 'version',
+                    as: 'cv_version',
                     attributes: ['id', 'version_no'],
                     required: false,
                 },
@@ -194,7 +194,6 @@ export class CvExportService {
                         originalname: 'cv.pdf',
                     } as Express.Multer.File);
 
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 finalUrl = uploadResult['url'] as string;
 
                 // Cập nhật file_url mới vào DB

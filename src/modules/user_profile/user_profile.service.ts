@@ -42,6 +42,7 @@ export class UserProfileService {
                 role: planUser.role,
                 profile,
                 planCurrent: sub.plan,
+                subscriptionCurrent: sub.subscription,
                 last_login_at: planUser.last_login_at,
                 createdAt: planUser.createdAt as Date,
                 updatedAt: planUser.updatedAt as Date,

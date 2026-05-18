@@ -90,12 +90,14 @@ export class AiRunsService {
             order: [[sort_by, sort_order]],
         });
         return {
-            data: rows,
-            meta: {
-                page,
-                limit,
-                total_items: count,
-                total_pages: Math.ceil(count / limit),
+            data: {
+                data: rows,
+                meta: {
+                    page,
+                    limit,
+                    total_items: count,
+                    total_pages: Math.ceil(count / limit),
+                },
             },
         };
     }

@@ -6,44 +6,30 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UseRoles } from '~/common/decorators';
 import { user_role } from '~/models';
 import { CreateAddonDto } from './dto/create-addon.dto';
+import { queryAddonDto } from './dto/query-addon.dto';
 
 @ApiTags('Gói mua thêm')
 @Controller('ai-addon-packages')
-@UseGuards(JwtAuthGuard)
 export class AiAddonPackagesController {
     constructor(
         private readonly aiAddonPackagesService: AiAddonPackagesService,
     ) {}
 
-    @ApiOperation({ summary: 'thêm gói mua thêm lượt phân tích ai' })
+    @ApiOperation({ summary: 'danh sách gói mua thêm' })
     @Get()
-    async getAllAddon(
-        @Query('limit') limit?: number,
-        @Query('page') page?: number,
-        @Query('search') search?: string,
-        @Query('sort_by') sort_by?: 'created_at' | 'updated_at' | 'title',
-        @Query('sort_order') sort_order?: 'ASC' | 'DESC',
-        @Query('is_trash') is_trash: boolean = false,
-    ) {
-        const allowedSortBy = ['created_at', 'updated_at', 'title'];
-        const allowedSortOrder = ['ASC', 'DESC'];
-        const finalSortBy = allowedSortBy.includes(sort_by ?? 'updated_at')
-            ? sort_by
-            : 'updated_at';
-        const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
-            ? sort_order
-            : 'DESC';
+    async getAllAddon(@Query() queryAddonDto: queryAddonDto) {
+        const { limit, page, search, sort_by, sort_order } = queryAddonDto;
         return await this.aiAddonPackagesService.getAll(
             Number(limit) || 8,
             Number(page) || 1,
             search,
-            finalSortBy || 'updated_at',
-            finalSortOrder || 'DESC',
-            // is_trash || false,
+            sort_by,
+            sort_order,
         );
     }
 
     @ApiOperation({ summary: 'thêm gói mua thêm lượt phân tích ai' })
+    @UseGuards(JwtAuthGuard)
     @UseGuards(RolesGuard)
     @UseRoles(user_role.ADMIN)
     @Post('create')

@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { PlansService } from './plans.service';
 import { PlansController } from './plans.controller';
 import { SequelizeModule } from '@nestjs/sequelize';
-import { Plans } from '~/models';
+import { Orders, Plans } from '~/models';
 import { AuthModule } from '../auth/auth.module';
 import { AiAddonPackagesModule } from '../ai_addon_packages/ai_addon_packages.module';
 
 @Module({
     imports: [
-        SequelizeModule.forFeature([Plans]),
+        SequelizeModule.forFeature([Plans, Orders]),
         AuthModule,
         AiAddonPackagesModule,
     ],

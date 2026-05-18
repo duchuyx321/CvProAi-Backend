@@ -160,7 +160,7 @@ export class CvsService {
     }
     async findOneBySlug(user_id: string, slug: string) {
         return await this.CvsModule.findOne({
-            where: { slug, user_id },
+            where: { user_id, slug },
         });
     }
     async getCountCvs(template_id: string) {
@@ -238,10 +238,14 @@ export class CvsService {
                 quotaLimit.quota.dataValues.id,
                 'cvs_used',
             );
-            await this.CvsModule.create({ user_id, ...createCVSDto } as any);
+            const cv = await this.CvsModule.create({
+                user_id,
+                ...createCVSDto,
+            } as any);
+            const plainCV = cv.get({ plain: true });
             return {
                 message: 'Lưu cv thành công',
-                data: { slug },
+                data: { ...plainCV },
             };
         } catch (error) {
             console.log(error);

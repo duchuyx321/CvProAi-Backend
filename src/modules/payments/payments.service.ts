@@ -66,7 +66,7 @@ export class PaymentsService {
     ) {
         const offset = (page - 1) * limit;
         const where: any = { user_id };
-        if (search) {
+        if (search?.trim()) {
             where[Op.or] = [
                 {
                     order_code: {
@@ -89,7 +89,7 @@ export class PaymentsService {
                     },
                 },
                 {
-                    '$addonPackage.name$': {
+                    '$addon_package.name$': {
                         [Op.iLike]: `%${search}%`,
                     },
                 },
@@ -156,7 +156,7 @@ export class PaymentsService {
     ) {
         const offset = (page - 1) * limit;
         const where: any = {};
-        if (search) {
+        if (search?.trim()) {
             where[Op.or] = [
                 {
                     order_code: {
@@ -179,7 +179,7 @@ export class PaymentsService {
                     },
                 },
                 {
-                    '$addonPackage.name$': {
+                    '$addon_package.name$': {
                         [Op.iLike]: `%${search}%`,
                     },
                 },

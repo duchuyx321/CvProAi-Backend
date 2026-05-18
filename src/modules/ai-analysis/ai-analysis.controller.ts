@@ -11,7 +11,7 @@ import {
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 
@@ -22,7 +22,7 @@ import { AnalyzeDto } from './dto/analyze.dto';
 import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
 
 @ApiTags('AI Analysis')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('ai-analysis')
 export class AiAnalysisController {
     constructor(private readonly aiAnalysisService: AiAnalysisService) {}
@@ -71,6 +71,7 @@ export class AiAnalysisController {
             jd_file,
         };
     }
+    @ApiOperation({ summary: 'lấy dữ liệu kết quả phân tích ai' })
     @Get('result/:ai_run_id')
     async getAnalysisResult(
         @Req() req: Request,
@@ -79,6 +80,7 @@ export class AiAnalysisController {
         const user_id = (req['user'] as { user_id: string }).user_id;
         return this.aiAnalysisService.getAnalysisResult(user_id, ai_run_id);
     }
+    @ApiOperation({ summary: 'lấy dữ liệu danh sách phân tích ai' })
     @Get('results')
     async getAnalysisResults(
         @Req() req: Request,
@@ -89,6 +91,7 @@ export class AiAnalysisController {
         return this.aiAnalysisService.getAnalysisResults(user_id, limit, page);
     }
 
+    @ApiOperation({ summary: 'lấy dữ liệu danh sách phân tích ai cá nhân' })
     @Get()
     async getAllAnalysisByUserID(
         @Req() req: Request,
@@ -101,6 +104,7 @@ export class AiAnalysisController {
             queryAnalyzeDto,
         );
     }
+    @ApiOperation({ summary: 'Phân tích ai' })
     @Post('analyze')
     @UseInterceptors(
         FileFieldsInterceptor(
@@ -131,13 +135,13 @@ export class AiAnalysisController {
 
         return this.aiAnalysisService.AnalyzeResults(user_id, validatedInput);
     }
+    @ApiOperation({ summary: 'Nhận gợi ý Cv' })
     @Post('rewrite-proposals/:aiRun_id')
     async rewriteProposals(
         @Req() req: Request,
         @Param('aiRun_id') aiRun_id: string,
         @Query('user_id') user_id: string,
     ) {
-        console.log(user_id, aiRun_id);
         // const user_id = (req['user'] as { user_id: string }).user_id;
         return this.aiAnalysisService.generateRewriteSuggestions(
             user_id,

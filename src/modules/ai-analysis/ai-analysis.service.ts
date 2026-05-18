@@ -4,6 +4,7 @@ import {
     BadRequestException,
     Injectable,
     InternalServerErrorException,
+    NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import mammoth from 'mammoth';
@@ -43,6 +44,8 @@ import {
     AiRewriteStatus,
     AiStructuredFeedbackDto,
 } from '../ai-results/dto/create-ai-results.dto';
+import { Helper } from '~/utils/helpers';
+import { CreateCVSDto, CVContent } from '../cvs/dto/create-cvs.dto';
 type AiRewriteSuggestionsParsed = {
     cv_content?: Record<string, unknown>;
     rewrite_proposals?: Record<string, unknown>[];
@@ -482,10 +485,20 @@ export class AiAnalysisService {
             (item) => item.status === AiRewriteStatus.PENDING,
         );
         if (pendingProposals.length > 0) {
+            if (!aiRun?.dataValues.cv_id) {
+                throw new NotFoundException(
+                    'Không tìm thấy CV trong hệ thống.',
+                );
+            }
+
+            const cv = await this.cvsService.getCvMeByID(
+                user_id,
+                aiRun.dataValues.cv_id,
+            );
             return {
                 message: 'Lấy dữ liệu thành công',
                 data: {
-                    detailCv: aiRun.dataValues.cv_id,
+                    detailCv: cv.data?.dataValues.slug,
                 },
             };
         }
@@ -561,16 +574,23 @@ export class AiAnalysisService {
             ...structuredFeedback,
             rewrite_proposals: rewriteProposals,
         };
-
-        // await this.aiResultsService.update(aiResult.dataValues.id, {
-        //     structured_feedback: nextStructuredFeedback,
-        // });
-
+        await this.aiResultsService.update(aiResult.dataValues.id, {
+            structured_feedback: nextStructuredFeedback,
+        });
+        const filterName = Helper.generateOTP();
+        const title = aiRun?.dataValues.cv_name + ' - ' + filterName;
+        const cv = await this.cvsService.addCv(user_id, {
+            template_id: '29713ded-64c6-4af0-b11a-1323f3a51eb3',
+            title,
+            content: rewriteResult.parsed.cv_content as CVContent,
+        } as CreateCVSDto);
+        await this.aiRunsService.updateAiRun(aiRun.dataValues.id, {
+            cv_id: cv.data.id,
+        });
         return {
-            message: 'Tạo gợi ý tối ưu thành công.',
+            message: 'Lấy dữ liệu thành công',
             data: {
-                nextStructuredFeedback,
-                cv_content: rewriteResult.parsed.cv_content,
+                detailCv: cv.data?.slug,
             },
         };
     }

@@ -6,16 +6,17 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 
-import { Plans } from '~/models';
+import { Orders, payment_status, Plans } from '~/models';
 import { CreatePlansDto, UpdatePlansDto } from '~/modules/plans/dto';
 import { Helper } from '~/utils/helpers';
 import { AiAddonPackagesService } from '../ai_addon_packages/ai_addon_packages.service';
-import { Op } from 'sequelize';
+import { col, fn, literal, Op } from 'sequelize';
 
 @Injectable()
 export class PlansService {
     constructor(
         @InjectModel(Plans) private readonly plansModel: typeof Plans,
+        @InjectModel(Orders) private readonly OrdersModel: typeof Orders,
         private readonly addonSerice: AiAddonPackagesService,
     ) {}
     async findAll(
@@ -29,24 +30,52 @@ export class PlansService {
         is_active?: boolean,
     ) {
         const offset = (page - 1) * limit;
-        const where: Record<string, any> = {};
+        const wherePlan: Record<string, any> = {};
 
         if (search?.trim()) {
-            where.name = {
+            wherePlan.name = {
                 [Op.iLike]: `%${search.trim()}%`,
             };
         }
         if (fromDate && toDate) {
-            where.updatedAt = {
+            wherePlan.updatedAt = {
                 [Op.gte]: fromDate,
                 [Op.lt]: toDate,
             };
         }
         if (typeof is_active === 'boolean') {
-            where.is_active = is_active;
+            wherePlan.is_active = is_active;
         }
+        const popularPlan = await this.OrdersModel.findOne({
+            attributes: [
+                'plan_id',
+                [fn('COUNT', col('Orders.id')), 'usage_count'],
+            ],
+            where: {
+                status: payment_status.PAID,
+                [Op.and]: [literal('"Orders"."plan_id" IS NOT NULL')],
+            },
+            include: [
+                {
+                    model: Plans,
+                    as: 'plan',
+                    attributes: [],
+                    required: true,
+                    where: {
+                        price: {
+                            [Op.gt]: 0,
+                        },
+                    },
+                },
+            ],
+            group: ['plan_id'],
+            order: [[literal('usage_count'), 'DESC']],
+            raw: true,
+        });
+        const popularPlanId =
+            popularPlan?.dataValues?.plan_id ?? popularPlan?.plan_id;
         const { rows, count } = await this.plansModel.findAndCountAll({
-            where,
+            where: wherePlan,
             order: [[sort_by, sort_order]],
             limit,
             offset,
@@ -54,10 +83,18 @@ export class PlansService {
                 exclude: ['created_at', 'updated_at'],
             },
         });
+        const data = rows.map((plan) => {
+            const item = plan.toJSON();
+
+            return {
+                ...item,
+                is_popular: item.id === popularPlanId,
+            };
+        });
         return {
             message: 'Lấy danh sách gói dịch vụ thành công',
             data: {
-                data: rows,
+                data,
                 meta: {
                     page,
                     limit,

@@ -12,6 +12,11 @@ import { Helper } from '~/utils/helpers';
 import { AiAddonPackagesService } from '../ai_addon_packages/ai_addon_packages.service';
 import { col, fn, literal, Op } from 'sequelize';
 
+type PlanWithUsageCount = {
+    id: string;
+    usage_count?: string | number | null;
+} & Record<string, unknown>;
+
 @Injectable()
 export class PlansService {
     constructor(
@@ -81,13 +86,27 @@ export class PlansService {
             offset,
             attributes: {
                 exclude: ['created_at', 'updated_at'],
+                include: [
+                    [
+                        literal(`(
+                        SELECT COUNT(*)::int
+                        FROM "orders" AS "o"
+                        WHERE "o"."plan_id" = "Plans"."id"
+                        AND "o"."status" = '${payment_status.PAID}'
+                    )`),
+                        'usage_count',
+                    ],
+                ],
             },
         });
         const data = rows.map((plan) => {
-            const item = plan.toJSON();
+            const item = plan.get({
+                plain: true,
+            }) as unknown as PlanWithUsageCount;
 
             return {
                 ...item,
+                usage_count: Number(item.usage_count ?? 0),
                 is_popular: item.id === popularPlanId,
             };
         });
@@ -164,17 +183,17 @@ export class PlansService {
     }
     async disable(id: string) {
         const alreadyExists = await this.findOneById(id);
-        await alreadyExists.data.dataValues.update({ is_active: false });
+        await alreadyExists.data.update({ is_active: false });
         return { message: 'Tắt gói dịch vụ thành công.' };
     }
     async restore(id: string) {
         const alreadyExists = await this.findOneById(id, false);
-        await alreadyExists.data.dataValues.update({ is_active: true });
+        await alreadyExists.data.update({ is_active: true });
         return { message: 'Tắt gói dịch vụ thành công.' };
     }
     async destroy(id: string) {
         const alreadyExists = await this.findOneById(id);
-        await alreadyExists.data.dataValues.destroy();
+        await alreadyExists.data.destroy();
         return { message: 'Xóa gói dịch vụ thành công.' };
     }
 }

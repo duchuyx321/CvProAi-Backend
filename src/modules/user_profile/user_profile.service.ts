@@ -10,7 +10,7 @@ import { UsersService } from '~/modules/users/users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePassDto } from './dto/change-pass.dto';
 import { Helper } from '~/utils/helpers';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
 
 @Injectable()
 export class UserProfileService {
@@ -18,7 +18,7 @@ export class UserProfileService {
         @InjectModel(User_profile)
         private readonly userProfileModel: typeof User_profile,
         private readonly userService: UsersService,
-        private readonly subscriptionsService: SubscriptionsService,
+        private readonly usageQuotasService: UsageQuotasService,
     ) {}
 
     async getMyProfile({ user_id, role }) {
@@ -31,9 +31,9 @@ export class UserProfileService {
                 exclude: ['user_id', 'createdAt', 'updatedAt'],
             },
         });
-        const sub = await this.subscriptionsService.getSubscriptionsByUserID(
-            planUser.id,
-        );
+        const usage =
+            await this.usageQuotasService.getUsageQuotaByUserId(user_id);
+        const { plan, quota, subscription } = usage;
         return {
             message: 'Lấy profile thành công.',
             data: {
@@ -41,8 +41,9 @@ export class UserProfileService {
                 full_name: planUser.full_name,
                 role: planUser.role,
                 profile,
-                planCurrent: sub.plan,
-                subscriptionCurrent: sub.subscription,
+                planCurrent: plan,
+                quotaCurrent: quota,
+                subscriptionCurrent: subscription,
                 last_login_at: planUser.last_login_at,
                 createdAt: planUser.createdAt as Date,
                 updatedAt: planUser.updatedAt as Date,

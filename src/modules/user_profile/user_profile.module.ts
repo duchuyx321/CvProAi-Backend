@@ -6,7 +6,7 @@ import { User_profile } from '~/models';
 import { AuthModule } from '~/modules/auth/auth.module';
 import { UsersModule } from '~/modules/users/users.module';
 import { CloudinaryModule } from '~/modules/cloudinary/cloudinary.module';
-import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { UsageQuotasModule } from '../usage-quotas/usage-quotas.module';
 
 @Module({
     imports: [
@@ -14,7 +14,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
         UsersModule,
         CloudinaryModule,
         SequelizeModule.forFeature([User_profile]),
-        SubscriptionsModule,
+        UsageQuotasModule,
     ],
     controllers: [UserProfileController],
     providers: [UserProfileService],

@@ -12,9 +12,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         private readonly userService: UsersService,
     ) {
         super({
-            clientID: configService.getOrThrow<string>('CLIENT_ID'),
-            clientSecret: configService.getOrThrow<string>('CLIENT_SECRET'),
-            callbackURL: configService.getOrThrow<string>('CALLBACK_URL'),
+            clientID: configService.getOrThrow<string>('CLIENT_ID').trim(),
+            clientSecret: configService
+                .getOrThrow<string>('CLIENT_SECRET')
+                .trim(),
+            callbackURL: configService
+                .getOrThrow<string>('CALLBACK_URL')
+                .trim(),
             scope: ['email', 'profile'],
         });
     }

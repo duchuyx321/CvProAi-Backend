@@ -36,9 +36,13 @@ export const configCors = (): CorsOptions => {
 export const configHTML = (accessToken: string) => {
     const configService = new ConfigService();
     const isProd = configService.get<string>('NODE_ENV') === 'development';
-    const hostAllow = configService.get<string>(
+    const rawHostAllow = configService.get<string>(
         isProd ? 'URI_CLIENT_LOCAL' : 'URI_CLIENT_PRODUCT',
     );
+    const hostAllow = rawHostAllow
+        ?.split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)[0];
     const html = `
         <!doctype html>
         <html>

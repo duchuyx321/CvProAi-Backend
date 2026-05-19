@@ -31,7 +31,6 @@ import { QueryRange } from '~/common/dto/queryTime.dto';
 import {
     AnalysisSourceType,
     buildDocument,
-    buildRawTextDocument,
     cleanExtractedPdfText,
     extractJobTitleFromJdText,
     getBaseFileName,
@@ -219,8 +218,25 @@ export class AiAnalysisService {
         jd_text?: string;
         jd_file?: Express.Multer.File;
     }): Promise<ParsedAnalysisDocument> {
-        if (payload.jd_text?.trim()) {
-            return buildRawTextDocument('jd', payload.jd_text);
+        const jdText = normalizeText(payload.jd_text);
+
+        if (jdText) {
+            if (jdText.length < 20) {
+                throw new BadRequestException(
+                    'Nội dung JD quá ngắn, vui lòng nhập mô tả công việc đầy đủ hơn.',
+                );
+            }
+
+            if (jdText.length > 20000) {
+                throw new BadRequestException(
+                    'Nội dung JD quá dài, vui lòng rút gọn mô tả công việc trước khi phân tích.',
+                );
+            }
+
+            return buildDocument('jd', jdText, {
+                fileName: 'job-description-text.txt',
+                mimeType: 'text/plain',
+            });
         }
 
         if (payload.jd_file) {

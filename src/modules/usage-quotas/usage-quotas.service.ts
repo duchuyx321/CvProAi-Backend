@@ -39,7 +39,9 @@ export class UsageQuotasService {
         );
 
         const quota_end_at =
-            subscription?.current_period_end ?? this.getEndOfCurrentMonth(now);
+            subscription?.dataValues?.current_period_end ??
+            subscription?.current_period_end ??
+            this.getEndOfCurrentMonth(now);
 
         const quota = await this.usageQuotasModel.findOne({
             where: {

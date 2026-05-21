@@ -56,7 +56,7 @@ export class CvsController {
         const finalSortOrder = allowedSortOrder.includes(sort_order ?? 'DESC')
             ? sort_order
             : 'DESC';
-        return this.cvsService.getAllCVMe(
+        const { message, data, meta } = await this.cvsService.getAllCVMe(
             user_id,
             Number(limit) || 8,
             Number(page) || 1,
@@ -65,6 +65,13 @@ export class CvsController {
             finalSortOrder || 'DESC',
             is_trash || false,
         );
+        return {
+            message,
+            data: {
+                data,
+                meta,
+            },
+        };
     }
 
     // [GET] --/cvs/me/:slug

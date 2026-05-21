@@ -27,16 +27,11 @@ export class UsageQuotasService {
         const now = new Date();
         const { plan, subscription, is_free_fallback } =
             await this.subscriptionsService.getSubscriptionsByUserID(user_id);
+        const planData = plan?.dataValues ?? plan;
 
-        const ai_runs_limit = Number(
-            (plan?.ai_limit || plan?.dataValues.ai_limit) ?? 0,
-        );
-        const exports_limit = Number(
-            plan?.export_limit ?? plan?.dataValues?.export_limit ?? 0,
-        );
-        const cvs_limit = Number(
-            plan?.cv_limit ?? plan?.dataValues?.cv_limit ?? 0,
-        );
+        const ai_runs_limit = Number(planData?.ai_limit ?? 0);
+        const exports_limit = Number(planData?.export_limit ?? 0);
+        const cvs_limit = Number(planData?.cv_limit ?? 0);
 
         const quota_end_at =
             subscription?.dataValues?.current_period_end ??
@@ -88,6 +83,8 @@ export class UsageQuotasService {
                 ai_runs_limit,
                 exports_used: 0,
                 exports_limit,
+                cvs_used: 0,
+                cvs_limit,
                 user_id,
             } as CreateUsageQuotasDto);
 
@@ -159,7 +156,7 @@ export class UsageQuotasService {
 
         if (
             usageable_type === 'cvs_used' &&
-            quota.dataValues.exports_used >= quota.dataValues.exports_limit
+            quota.dataValues.cvs_used >= quota.dataValues.cvs_limit
         ) {
             throw new BadRequestException('Đã hết lượt tạo Cv ');
         }

@@ -140,9 +140,8 @@ export class AiAnalysisController {
     async rewriteProposals(
         @Req() req: Request,
         @Param('aiRun_id') aiRun_id: string,
-        @Query('user_id') user_id: string,
     ) {
-        // const user_id = (req['user'] as { user_id: string }).user_id;
+        const user_id = (req['user'] as { user_id: string }).user_id;
         return this.aiAnalysisService.generateRewriteSuggestions(
             user_id,
             aiRun_id,

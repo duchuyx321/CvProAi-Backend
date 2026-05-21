@@ -37,6 +37,8 @@ export enum AiTargetSection {
     SKILLS = 'skills',
     PROJECTS = 'projects',
     EDUCATION = 'education',
+    CONTACT = 'contact',
+    ADDITIONAL_INFO = 'additional_info',
 }
 
 export enum AiRewriteAction {
@@ -210,25 +212,6 @@ export class AiStructuredFeedbackDto {
     @IsArray()
     @IsObject({ each: true })
     section_feedback?: Record<string, unknown>[];
-
-    /**
-     * Dùng cho Free user:
-     * hiển thị phần bị khóa, số gap bị ẩn, CTA nâng cấp.
-     */
-    @IsOptional()
-    @IsObject()
-    locked_summary?: Record<string, unknown>;
-
-    /**
-     * Dùng cho CV upload ngoài.
-     * Khi user Premium bấm nhận gợi ý chỉnh sửa,
-     * AI sẽ convert cv_text thành content đúng schema CVContent
-     * rồi lưu vào structured_feedback.cv_content.
-     */
-    @IsOptional()
-    @IsObject()
-    cv_content?: Record<string, unknown>;
-
     /**
      * Có thể lưu duplicate weaknesses vào đây nếu muốn gom toàn bộ structured data.
      * Nếu đã lưu top-level weaknesses thì không bắt buộc dùng field này.

@@ -217,10 +217,9 @@ export class CvsService {
         try {
             const quotaLimit =
                 await this.usageQuotasService.getUsageQuotaByUserId(user_id);
-            if (
-                quotaLimit.quota.dataValues.exports_used >=
-                quotaLimit.quota.dataValues.exports_limit
-            ) {
+            const quota = quotaLimit.quota.dataValues ?? quotaLimit.quota;
+            console.log(quota);
+            if (quota.cvs_used >= quota.cvs_limit) {
                 throw new BadRequestException('Bạn đã hết tạo CV.');
             }
             const slug = Helper.makeSlugFromString(createCVSDto.title);
@@ -235,7 +234,7 @@ export class CvsService {
             // tăng increase usage quota
             await this.usageQuotasService.increaseUsage(
                 user_id,
-                quotaLimit.quota.dataValues.id,
+                quota.id,
                 'cvs_used',
             );
             const cv = await this.CvsModule.create({
@@ -319,10 +318,12 @@ export class CvsService {
         // check asage-quota người dùng còn đủ không
         const quotaLimit =
             await this.usageQuotasService.getUsageQuotaByUserId(user_id);
-        if (
-            quotaLimit.quota.dataValues.exports_used >=
-            quotaLimit.quota.dataValues.exports_limit
-        ) {
+        const quota = quotaLimit.quota.dataValues ?? quotaLimit.quota;
+        console.log({
+            quota,
+            isLimit: quota.exports_used >= quota.exports_limit,
+        });
+        if (quota.cvs_used >= quota.cvs_limit) {
             throw new BadRequestException('Bạn đã hết lượt xuất file.');
         }
         const canRemoveWatermark = Boolean(quotaLimit.plan?.remove_watermark);

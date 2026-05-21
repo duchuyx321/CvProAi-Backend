@@ -377,6 +377,15 @@ export class AiAnalysisService {
             cvDocument,
             jdDocument,
         );
+        if (!result.parsed) {
+            await this.aiRunsService.updateAiRun(aiRun.dataValues.id, {
+                status: ai_run_status.FAILED,
+                error_message: 'Gemini không trả về nội dung phân tích.',
+            });
+            throw new InternalServerErrorException(
+                'Gemini không trả về nội dung phân tích.',
+            );
+        }
         // cập nhật trạng thái sau khi xử lý ai
         const payload = {
             model:
@@ -426,8 +435,15 @@ export class AiAnalysisService {
             quotaLimit?.plan?.dataValues.view_full_ai_analysis ?? false,
             quotaLimit?.plan?.dataValues.name ?? 'free',
         );
+        const isUploadedCv =
+            aiRun.dataValues.cv_source_type === AiCvSourceType.UPLOADED;
+
+        const isConverted = isUploadedCv && Boolean(aiRun.dataValues.cv_id);
         return {
-            data: result,
+            data: {
+                ...result,
+                isConverted,
+            },
         };
     }
     async getAnalysisResults(user_id: string, limit: number, page: number) {
@@ -467,10 +483,14 @@ export class AiAnalysisService {
             quotaLimitPlan?.slug === 'free' &&
             aiRun.dataValues.cv_source_type === AiCvSourceType.INTERNAL
         ) {
+            const cv = await this.cvsService.getCvMeByID(
+                user_id,
+                aiRun?.dataValues?.cv_id as string,
+            );
             return {
                 message: 'Lấy dữ liệu thành công',
                 data: {
-                    detailCv: aiRun.dataValues.cv_id,
+                    detailCv: cv.data.dataValues.slug,
                 },
             };
         }

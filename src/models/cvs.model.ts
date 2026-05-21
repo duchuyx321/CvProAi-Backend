@@ -33,7 +33,18 @@ export enum cv_visibility {
     LINK = 'LINK',
 }
 
-@Table({ tableName: 'cvs', timestamps: true, underscored: true })
+@Table({
+    tableName: 'cvs',
+    timestamps: true,
+    underscored: true,
+    indexes: [
+        {
+            unique: true,
+            fields: ['user_id', 'slug'],
+            name: 'cvs_user_id_slug_key',
+        },
+    ],
+})
 export class Cvs extends Model<Cvs> {
     @PrimaryKey
     @Column({
@@ -91,7 +102,6 @@ export class Cvs extends Model<Cvs> {
     @Column({
         type: DataType.STRING(255),
         allowNull: true,
-        unique: true,
     })
     slug?: string;
 
@@ -107,19 +117,19 @@ export class Cvs extends Model<Cvs> {
     custom_config?: Record<string, any>;
 
     @BelongsTo(() => Users)
-    user?: Users;
+    declare user?: Users;
 
     @BelongsTo(() => Cv_templates)
-    template?: Cv_templates;
+    declare template?: Cv_templates;
 
     @HasMany(() => Cv_exports)
-    cv_exports?: Cv_exports[];
+    declare cv_exports?: Cv_exports[];
 
     @HasMany(() => Cv_versions)
-    cv_versions?: Cv_versions[];
+    declare cv_versions?: Cv_versions[];
 
     @HasMany(() => Ai_runs)
-    ai_runs?: Ai_runs[];
+    declare ai_runs?: Ai_runs[];
 
     // add slug auto
     @BeforeValidate // gọi trước khi tạo

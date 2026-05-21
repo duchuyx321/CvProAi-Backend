@@ -7,7 +7,14 @@ import {
 
 import { InjectModel } from '@nestjs/sequelize';
 
-import { Usage_quotas, User_profile, user_status, Users } from '~/models';
+import {
+    Plans,
+    Subscriptions,
+    Usage_quotas,
+    User_profile,
+    user_status,
+    Users,
+} from '~/models';
 import { user_provider, user_role } from '~/models/users.model';
 import { CreateUserDto } from '~/modules/users/dto/create-user.dto';
 import { Helper } from '~/utils/helpers';
@@ -61,15 +68,40 @@ export class UsersService {
             include: [
                 {
                     model: User_profile,
+                    as: 'user_profile',
                 },
                 {
                     model: Usage_quotas,
-                    attributes: { exclude: ['createdAt', 'updatedAt'] },
+                    as: 'usage_quotas',
+                    attributes: {
+                        exclude: ['createdAt', 'updatedAt'],
+                    },
+                    required: false,
+                    separate: true,
+                    limit: 1,
+                    order: [['quota_end_at', 'DESC']],
+                },
+                {
+                    model: Subscriptions,
+                    attributes: {
+                        exclude: ['createdAt', 'updatedAt'],
+                    },
+                    include: [
+                        {
+                            model: Plans,
+                            as: 'plan',
+                            attributes: {
+                                exclude: ['createdAt', 'updatedAt'],
+                            },
+                        },
+                    ],
                 },
             ],
             attributes: {
                 exclude: ['password_hash'],
             },
+            distinct: true,
+            col: 'id',
             limit,
             offset,
             order: [[sort_by, sort_order]],

@@ -79,6 +79,7 @@ export class AiResultsService {
             suggestions: suggestions.items,
             suggestions_meta: suggestions.meta,
 
+            structured_feedback: result.dataValues.structured_feedback,
             strengths: strengths.items,
             strengths_meta: strengths.meta,
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

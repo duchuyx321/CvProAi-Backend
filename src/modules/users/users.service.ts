@@ -313,6 +313,26 @@ export class UsersService {
             role: alreadyExist.dataValues.role,
         };
     }
+    async changeRole(user_id: string, role: user_role) {
+        const user = await this.UsersModel.findOne({
+            where: { id: user_id },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thầy người dùng.');
+        }
+        const plainUser = user.get({ plain: true });
+        if (plainUser.role === role) {
+            throw new BadRequestException('Người dùng đang sữ dụng role này.');
+        }
+
+        const updated = await user.update({ role }, { where: { id: user_id } });
+        if (updated[0] === 0)
+            throw new BadRequestException(
+                'Cập nhật role của người dùng không thông.',
+            );
+
+        return { message: 'Cập nhật role của người dùng thành công.' };
+    }
 
     async dashboar(user_id) {
         const cv = await this.cvsService.getAllCVMe(

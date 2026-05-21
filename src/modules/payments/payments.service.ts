@@ -29,6 +29,7 @@ import { UsersService } from '../users/users.service';
 import { Subscriptions } from '~/models/subscriptions.model';
 import { EditPaymentDto } from '../admin/payments/dto/edit-payment.dto';
 import { merge } from 'lodash';
+import { CreateManualOrderDto } from './dto/create-manual-order.dto';
 
 const allowedTransitions: Record<payment_status, payment_status[]> = {
     [payment_status.PENDING]: [
@@ -439,23 +440,31 @@ export class PaymentsService {
             canceled,
         };
     }
-    async create(user_id: string, createPaymentDto: CreatePaymentDto) {
+    private async buildPaymentDraft(
+        user_id: string,
+        dto: {
+            paymentable_type: order_type;
+            plan_id?: string;
+            addon_package_id?: string;
+        },
+    ) {
         const {
             plan_id: dtoPlanId,
             addon_package_id: dtoAddonId,
             paymentable_type,
-        } = createPaymentDto;
+        } = dto;
+
         const {
             subscription,
             plan: currentPlan,
             is_free_fallback,
         } = await this.subscriptionsService.getSubscriptionsByUserID(user_id);
-        let amount_cents: number = 0;
-        const provider = this.configService.get<string>('PROVIDE_PAYMENT');
-        const currency = 'VND';
+
+        let amount_cents = 0;
         let plan_id: string | null = null;
         let addon_package_id: string | null = null;
-        let description: string | null = null;
+        let description = '';
+
         switch (paymentable_type) {
             case order_type.SUBSCRIPTION: {
                 if (!dtoPlanId) {
@@ -478,9 +487,10 @@ export class PaymentsService {
                     );
                 }
 
-                amount_cents = Number(planPayment.price);
+                amount_cents = Number(planPayment.price ?? 0);
                 description = `Thanh toán ${planPayment.name}`;
                 plan_id = planPayment.id;
+
                 break;
             }
 
@@ -488,16 +498,19 @@ export class PaymentsService {
                 if (!dtoAddonId) {
                     throw new BadRequestException('Thiếu addon_package_id');
                 }
+
                 if (is_free_fallback || !subscription) {
                     throw new BadRequestException(
                         'Bạn cần nâng cấp gói trước khi mua thêm lượt phân tích AI',
                     );
                 }
-                const isPurchase_ai_addon: boolean =
-                    currentPlan?.dataValues.can_purchase_ai_addon ||
-                    currentPlan?.can_purchase_ai_addon ||
+
+                const canPurchaseAiAddon =
+                    currentPlan?.dataValues?.can_purchase_ai_addon ??
+                    currentPlan?.can_purchase_ai_addon ??
                     false;
-                if (!isPurchase_ai_addon) {
+
+                if (!canPurchaseAiAddon) {
                     throw new BadRequestException(
                         'Gói hiện tại không được phép mua thêm lượt phân tích AI',
                     );
@@ -507,10 +520,13 @@ export class PaymentsService {
                     await this.aiAddonPackagesService.getAiAddonPackagesById(
                         dtoAddonId,
                     );
+
                 const plainAddOn = addOn.get({ plain: true });
-                amount_cents = Number(plainAddOn.price);
+
+                amount_cents = Number(plainAddOn.price ?? 0);
                 description = `Thanh toán ${plainAddOn.name}`;
                 addon_package_id = plainAddOn.id;
+
                 break;
             }
 
@@ -547,13 +563,17 @@ export class PaymentsService {
                     await this.aiAddonPackagesService.getAiAddonPackagesById(
                         dtoAddonId,
                     );
-                const plainAddon = addOn.get({ plain: true });
+
+                const plainAddOn = addOn.get({ plain: true });
+
                 amount_cents =
                     Number(planPayment.price ?? 0) +
-                    Number(plainAddon.price ?? 0);
-                description = `Thanh toán ${planPayment.name} + ${plainAddon.name}`;
+                    Number(plainAddOn.price ?? 0);
+
+                description = `Thanh toán ${planPayment.name} + ${plainAddOn.name}`;
                 plan_id = planPayment.id;
-                addon_package_id = plainAddon.id;
+                addon_package_id = plainAddOn.id;
+
                 break;
             }
 
@@ -568,21 +588,52 @@ export class PaymentsService {
         };
 
         const prefix = prefixMap[paymentable_type];
-        const transferContent = `${prefix}-${Helper.generateOTP(10).toUpperCase()}`;
-        const order_code = `CVPROAI-${transferContent}`;
-        const payload = {
-            user_id,
-            order_type: paymentable_type,
+
+        if (!prefix) {
+            throw new BadRequestException('Loại thanh toán không hợp lệ');
+        }
+
+        const transfer_content = `${prefix}-${Helper.generateOTP(
+            10,
+        ).toUpperCase()}`;
+
+        const order_code = `CVPROAI-${transfer_content}`;
+
+        return {
+            paymentable_type,
             order_code,
-            currency,
-            description,
+            transfer_content,
             amount_cents,
+            description,
             plan_id,
             addon_package_id,
+        };
+    }
+    async create(user_id: string, createPaymentDto: CreatePaymentDto) {
+        const paymentDraft = await this.buildPaymentDraft(
+            user_id,
+            createPaymentDto,
+        );
+        const provider =
+            this.configService.get<string>('PROVIDER_PAYMENT') ??
+            this.configService.get<string>('PROVIDE_PAYMENT') ??
+            'SEPAY';
+        const payload = {
+            user_id,
+            order_type: paymentDraft.paymentable_type,
+            order_code: paymentDraft.order_code,
+            currency: 'VND',
+            description: paymentDraft.description,
+            amount_cents: paymentDraft.amount_cents,
+            plan_id: paymentDraft.plan_id,
+            addon_package_id: paymentDraft.addon_package_id,
             provider,
+            status: payment_status.PENDING,
+            metadata: {
+                transfer_content: paymentDraft.transfer_content,
+            },
         };
         const order = await this.OrdersModel.create(payload as any);
-
         return {
             message: 'tạo đơn hàng thành công',
             data: {
@@ -705,6 +756,101 @@ export class PaymentsService {
             },
         };
     }
+    private async applyPaidOrderToSubscriptionAndQuota(plainOrder: Orders) {
+        // cập nhật vào subscript và quota
+        let subscription: any = null;
+        let planAiLimit = 0;
+        let planExportLimit = 0;
+        let planCvLimit = 0;
+        let addonAiRuns = 0;
+
+        const quota = await this.usageQuotasService.getUsageQuotaByUserId(
+            plainOrder.user_id,
+        );
+
+        const currentAiLimit = Number(
+            quota.quota.dataValues.ai_runs_limit ??
+                quota.quota.ai_runs_limit ??
+                0,
+        );
+
+        const currentExportLimit = Number(
+            quota.quota.dataValues.exports_limit ??
+                quota.quota.exports_limit ??
+                0,
+        );
+        const currentCvLimit = Number(
+            quota.quota.dataValues.cvs_limit ?? quota.quota.cvs_limit ?? 0,
+        );
+
+        if (plainOrder.plan_id) {
+            const plan = await this.plansService.findOneById(
+                plainOrder.plan_id,
+            );
+            const plainPlan = plan.data.get
+                ? plan.data.get({ plain: true })
+                : (plan.data.dataValues ?? plan.data);
+
+            planAiLimit = Number(plainPlan.ai_limit ?? 0);
+            planExportLimit = Number(plainPlan.export_limit ?? 0);
+            planCvLimit = Number(plainPlan.cv_limit ?? 0);
+
+            subscription = await this.subscriptionsService.create({
+                order_id: plainOrder.id,
+                plan_id: plainOrder.plan_id,
+                user_id: plainOrder.user_id,
+            });
+        }
+
+        if (plainOrder.addon_package_id) {
+            const addon =
+                await this.aiAddonPackagesService.getAiAddonPackagesById(
+                    plainOrder.addon_package_id,
+                );
+            const plainAddon = addon.get
+                ? addon.get({ plain: true })
+                : (addon.dataValues ?? addon);
+
+            addonAiRuns = Number(plainAddon.runs ?? 0);
+        }
+
+        const payloadQuot: UpdateUsageQuotasDto = {
+            user_id: plainOrder.user_id,
+        };
+
+        if (plainOrder.plan_id) {
+            // Mua plan: reset quota theo plan, rồi cộng add-on nếu có
+            payloadQuot.ai_runs_used = 0;
+            payloadQuot.exports_used = 0;
+            payloadQuot.cvs_used = 0;
+
+            payloadQuot.ai_runs_limit = planAiLimit + addonAiRuns;
+            payloadQuot.exports_limit = planExportLimit;
+            payloadQuot.cvs_limit = planCvLimit;
+
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            payloadQuot.quota_end_at =
+                subscription.dataValues.current_period_end ??
+                subscription.current_period_end;
+        } else if (plainOrder.addon_package_id) {
+            // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
+            payloadQuot.ai_runs_limit = currentAiLimit + addonAiRuns;
+            payloadQuot.exports_limit = currentExportLimit;
+            payloadQuot.cvs_limit = currentCvLimit;
+        } else {
+            throw new BadRequestException(
+                'Đơn hàng không có plan_id hoặc addon_package_id',
+            );
+        }
+
+        await this.usageQuotasService.updateUsageQuota(
+            quota.quota.dataValues.id,
+            payloadQuot,
+        );
+        return {
+            quota_payload: payloadQuot,
+        };
+    }
     async callback(payload: SepayWebhookDto) {
         const order_code = Helper.formatOrderCodeFromTransferCode(
             payload.content?.trim(),
@@ -749,82 +895,7 @@ export class PaymentsService {
                 ...payload,
             },
         });
-        // cập nhật vào subscript và quota
-        let subscription: any = null;
-        let planAiLimit = 0;
-        let planExportLimit = 0;
-        let addonAiRuns = 0;
-
-        const quota = await this.usageQuotasService.getUsageQuotaByUserId(
-            plainOrder.user_id,
-        );
-
-        const currentAiLimit = Number(
-            quota.quota.dataValues.ai_runs_limit ??
-                quota.quota.ai_runs_limit ??
-                0,
-        );
-
-        const currentExportLimit = Number(
-            quota.quota.dataValues.exports_limit ??
-                quota.quota.exports_limit ??
-                0,
-        );
-
-        if (plainOrder.plan_id) {
-            const plan = await this.plansService.findOneById(
-                plainOrder.plan_id,
-            );
-
-            planAiLimit = Number(
-                plan.data.dataValues.ai_limit ?? plan.data.ai_limit ?? 0,
-            );
-
-            planExportLimit = Number(
-                plan.data.dataValues.export_limit ??
-                    plan.data.export_limit ??
-                    0,
-            );
-
-            subscription = await this.subscriptionsService.create({
-                order_id: plainOrder.id,
-                plan_id: plainOrder.plan_id,
-                user_id: plainOrder.user_id,
-            });
-        }
-
-        if (plainOrder.addon_package_id) {
-            const addon =
-                await this.aiAddonPackagesService.getAiAddonPackagesById(
-                    plainOrder.addon_package_id,
-                );
-
-            addonAiRuns = Number(addon.dataValues.runs ?? addon.runs ?? 0);
-        }
-
-        const payloadQuot: UpdateUsageQuotasDto = {
-            user_id: plainOrder.user_id,
-        };
-
-        if (plainOrder.plan_id) {
-            // Mua plan: reset quota theo plan, rồi cộng add-on nếu có
-            payloadQuot.ai_runs_limit = planAiLimit + addonAiRuns;
-            payloadQuot.exports_limit = planExportLimit;
-
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            payloadQuot.quota_end_at =
-                subscription.dataValues.current_period_end ??
-                subscription.current_period_end;
-        } else if (plainOrder.addon_package_id) {
-            // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
-            payloadQuot.ai_runs_limit = currentAiLimit + addonAiRuns;
-            payloadQuot.exports_limit = currentExportLimit;
-        }
-
-        await this.usageQuotasService.updateUsageQuota(
-            quota.quota.dataValues.id,
-            payloadQuot,
-        );
+        await this.applyPaidOrderToSubscriptionAndQuota(plainOrder);
         return {
             message: 'thanh toán đơn hàng thành công',
             data: { payment_id: plainOrder.id },
@@ -944,86 +1015,50 @@ export class PaymentsService {
             metadata: newMetadata,
         });
         if (newStatus === payment_status.PAID) {
-            let subscription: any = null;
-            let planAiLimit = 0;
-            let planExportLimit = 0;
-            let addonAiRuns = 0;
-
-            const quota = await this.usageQuotasService.getUsageQuotaByUserId(
-                plainOrder.user_id,
-            );
-
-            const currentAiLimit = Number(
-                quota.quota.dataValues.ai_runs_limit ??
-                    quota.quota.ai_runs_limit ??
-                    0,
-            );
-
-            const currentExportLimit = Number(
-                quota.quota.dataValues.exports_limit ??
-                    quota.quota.exports_limit ??
-                    0,
-            );
-
-            if (plainOrder.plan_id) {
-                const plan = await this.plansService.findOneById(
-                    plainOrder.plan_id,
-                );
-
-                planAiLimit = Number(
-                    plan.data.dataValues.ai_limit ?? plan.data.ai_limit ?? 0,
-                );
-
-                planExportLimit = Number(
-                    plan.data.dataValues.export_limit ??
-                        plan.data.export_limit ??
-                        0,
-                );
-
-                subscription = await this.subscriptionsService.create({
-                    order_id: plainOrder.id,
-                    plan_id: plainOrder.plan_id,
-                    user_id: plainOrder.user_id,
-                });
-            }
-
-            if (plainOrder.addon_package_id) {
-                const addon =
-                    await this.aiAddonPackagesService.getAiAddonPackagesById(
-                        plainOrder.addon_package_id,
-                    );
-
-                addonAiRuns = Number(addon.dataValues.runs ?? addon.runs ?? 0);
-            }
-
-            const payloadQuot: UpdateUsageQuotasDto = {
-                user_id: plainOrder.user_id,
-            };
-
-            if (plainOrder.plan_id) {
-                // Mua plan: reset quota theo plan, rồi cộng add-on nếu có
-                payloadQuot.ai_runs_limit = planAiLimit + addonAiRuns;
-                payloadQuot.exports_limit = planExportLimit;
-
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                payloadQuot.quota_end_at =
-                    subscription.dataValues.current_period_end ??
-                    subscription.current_period_end;
-            } else if (plainOrder.addon_package_id) {
-                // Chỉ mua add-on: giữ export cũ, cộng thêm AI runs
-                payloadQuot.ai_runs_limit = currentAiLimit + addonAiRuns;
-                payloadQuot.exports_limit = currentExportLimit;
-            }
-
-            await this.usageQuotasService.updateUsageQuota(
-                quota.quota.dataValues.id,
-                payloadQuot,
-            );
+            await this.applyPaidOrderToSubscriptionAndQuota(plainOrder);
         }
 
         return {
             message: 'Cập nhật trạng thái đơn hàng thành công',
             data: order,
+        };
+    }
+    async AdminCreateManualOrder(
+        user_id: string,
+        changeSubscriptionDto: CreateManualOrderDto,
+        admin_id: string,
+    ) {
+        const paymentDraft = await this.buildPaymentDraft(
+            user_id,
+            changeSubscriptionDto,
+        );
+        const payload = {
+            user_id,
+            order_type: paymentDraft.paymentable_type,
+            order_code: paymentDraft.order_code,
+            currency: 'VND',
+            description: changeSubscriptionDto.reason,
+            amount_cents: 0,
+            plan_id: paymentDraft.plan_id,
+            addon_package_id: paymentDraft.addon_package_id,
+            provider: 'MANUAL_ADMIN',
+            provider_transaction_id:
+                changeSubscriptionDto.provider_transaction_id,
+            status: payment_status.PAID,
+            paid_at: new Date(),
+            metadata: {
+                manual: true,
+                admin_id,
+                reason: changeSubscriptionDto.reason,
+                original_amount_cents: paymentDraft.amount_cents,
+                original_description: paymentDraft.description,
+            },
+        };
+        const order = await this.OrdersModel.create(payload as any);
+        const plainOrder = order.get({ plain: true });
+        await this.applyPaidOrderToSubscriptionAndQuota(plainOrder);
+        return {
+            message: 'Nâng cấp tài khoản thu công thành công',
         };
     }
 }

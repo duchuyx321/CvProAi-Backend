@@ -41,12 +41,12 @@ export class CvExportService {
                 },
                 {
                     '$cv.title$': {
-                        [Op.iLike]: `%${search}%`,
+                        [Op.iLike]: `%${search.trim()}%`,
                     },
                 },
                 {
                     '$cv.slug$': {
-                        [Op.iLike]: `%${search}%`,
+                        [Op.iLike]: `%${search.trim()}%`,
                     },
                 },
             ];
@@ -77,6 +77,8 @@ export class CvExportService {
             attributes: ['id', 'cv_id', 'version_id', 'createdAt', 'updatedAt'],
             limit,
             offset,
+            distinct: true,
+            subQuery: false,
             order: [[sort_by, sort_order]],
         });
         return {

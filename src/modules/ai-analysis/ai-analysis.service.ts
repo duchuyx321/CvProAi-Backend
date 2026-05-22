@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { GoogleGenAI } from '@google/genai';
 import {
@@ -40,11 +41,17 @@ import {
     ParsedAnalysisDocument,
 } from './ai-analysis.util';
 import {
+    AiInsertPosition,
+    AiRewriteProposalDto,
     AiRewriteStatus,
     AiStructuredFeedbackDto,
+    ApplyAiRewriteProposalsDto,
 } from '../ai-results/dto/create-ai-results.dto';
 import { Helper } from '~/utils/helpers';
 import { CreateCVSDto, CVContent } from '../cvs/dto/create-cvs.dto';
+import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize';
+import { applyProposalToCvContent } from '../cvs/cvs.util';
 type AiRewriteSuggestionsParsed = {
     cv_content?: Record<string, unknown>;
     rewrite_proposals?: Record<string, unknown>[];
@@ -64,6 +71,7 @@ export class AiAnalysisService {
         private readonly configService: ConfigService,
         private readonly aiRunsService: AiRunsService,
         private readonly aiResultsService: AiResultsService,
+        private readonly sequelize: Sequelize,
     ) {}
 
     private async buildInternalCvAnalysisDocument(
@@ -473,6 +481,19 @@ export class AiAnalysisService {
     }
 
     // nhận gợi ý
+    private normalizeInsertPosition(
+        value?: string | AiInsertPosition,
+    ): AiInsertPosition | undefined {
+        if (!value) return undefined;
+
+        if (
+            Object.values(AiInsertPosition).includes(value as AiInsertPosition)
+        ) {
+            return value as AiInsertPosition;
+        }
+
+        return undefined;
+    }
     async generateRewriteSuggestions(user_id: string, ai_run_id: string) {
         // kiểm tra người dùng là free hay premium
         const quotaLimit =
@@ -486,6 +507,21 @@ export class AiAnalysisService {
             const cv = await this.cvsService.getCvMeByID(
                 user_id,
                 aiRun?.dataValues?.cv_id as string,
+            );
+            return {
+                message: 'Lấy dữ liệu thành công',
+                data: {
+                    detailCv: cv.data.dataValues.slug,
+                },
+            };
+        }
+        if (
+            aiRun.dataValues.cv_source_type === AiCvSourceType.UPLOADED &&
+            aiRun?.dataValues?.cv_id
+        ) {
+            const cv = await this.cvsService.getCvMeByID(
+                user_id,
+                aiRun?.dataValues?.cv_id,
             );
             return {
                 message: 'Lấy dữ liệu thành công',
@@ -605,12 +641,32 @@ export class AiAnalysisService {
         const rewriteProposals = normalizeRewriteProposals(
             rewriteResult.parsed.rewrite_proposals ?? [],
         );
-
+        const plainRewriteProposals: AiRewriteProposalDto[] =
+            rewriteProposals.map((item) => ({
+                id: item.id,
+                weakness_id: item.weakness_id ?? '',
+                action: item.action,
+                target_section: item.target_section,
+                target_path: item.target_path ?? '',
+                insert_position: this.normalizeInsertPosition(
+                    item.insert_position,
+                ),
+                old_text: item.old_text ?? '',
+                new_text: item.new_text ?? '',
+                reason: item.reason,
+                severity: item.severity,
+                estimated_score_gain: item.estimated_score_gain ?? 0,
+                status: item.status ?? AiRewriteStatus.PENDING,
+                proposal_hash: item.proposal_hash ?? '',
+                applied_at: item.applied_at ?? '',
+                applied_by: item.applied_by ?? '',
+            }));
         const nextStructuredFeedback = {
             ...structuredFeedback,
-            rewrite_proposals: rewriteProposals,
+            rewrite_proposals: plainRewriteProposals,
         };
-        await this.aiResultsService.update(aiResult.dataValues.id, {
+        console.log('nextStructuredFeedback', nextStructuredFeedback);
+        await this.aiResultsService.update(aiRun.dataValues.id, {
             structured_feedback: nextStructuredFeedback,
         });
         const filterName = Helper.generateOTP();
@@ -691,6 +747,188 @@ export class AiAnalysisService {
             throw new InternalServerErrorException(
                 'Không thể gọi Gemini để tạo gợi ý chỉnh sửa CV.',
             );
+        }
+    }
+
+    // apply và reject
+    async transactionStatusRewrite(
+        ai_run_id: string,
+        user_id: string,
+        status: AiRewriteStatus = AiRewriteStatus.PENDING,
+        applyAiRewriteProposalsDto: ApplyAiRewriteProposalsDto,
+        transaction: Transaction,
+    ) {
+        const { apply_all = false, proposal_ids = [] } =
+            applyAiRewriteProposalsDto;
+        if (!apply_all && proposal_ids.length === 0) {
+            throw new BadRequestException('Vui lòng chọn ít nhất một đề xuất.');
+        }
+        const aiRun = await this.aiRunsService.getAiRunById(
+            ai_run_id,
+            user_id,
+            transaction,
+        );
+        const plainAiRun = aiRun.get({ plain: true });
+        const aiResult = await this.aiResultsService.getRawAiResultByAiRunId(
+            plainAiRun.id,
+            transaction,
+        );
+        if (!aiResult) {
+            throw new NotFoundException('Kết quả phân tích AI không tồn tại');
+        }
+        const plainAiResult = aiResult.get({ plain: true });
+
+        const structuredFeedback = plainAiResult.structured_feedback ?? {};
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const rewriteProposals = structuredFeedback?.rewrite_proposals ?? [];
+        if (!Array.isArray(rewriteProposals) || rewriteProposals.length === 0) {
+            throw new BadRequestException('Không có đề xuất nào để áp dụng');
+        }
+        let targetProposals: any[] = [];
+        if (apply_all) {
+            targetProposals = rewriteProposals.filter(
+                (proposal) =>
+                    !proposal.status ||
+                    proposal.status === AiRewriteStatus.PENDING,
+            );
+        } else {
+            targetProposals = rewriteProposals.filter((proposal) =>
+                proposal_ids.includes(proposal.id),
+            );
+
+            const foundIds = targetProposals.map((proposal) => proposal.id);
+
+            const missingIds = proposal_ids.filter(
+                (id) => !foundIds.includes(id),
+            );
+
+            if (missingIds.length > 0) {
+                throw new BadRequestException(
+                    `Không tìm thấy proposal_ids: ${missingIds.join(', ')}`,
+                );
+            }
+        }
+
+        if (targetProposals.length === 0) {
+            throw new BadRequestException(
+                'Không có proposal pending nào để áp dụng',
+            );
+        }
+
+        const invalidProposals = targetProposals.filter(
+            (proposal) =>
+                proposal.status && proposal.status !== AiRewriteStatus.PENDING,
+        );
+
+        if (invalidProposals.length > 0) {
+            throw new BadRequestException(
+                'Chỉ có thể apply proposal đang ở trạng thái pending',
+            );
+        }
+        const targetProposalIdSet = new Set(
+            targetProposals.map((proposal) => proposal.id),
+        );
+        const updatedRewriteProposals = rewriteProposals.map((proposal) => {
+            if (!targetProposalIdSet.has(proposal.id)) {
+                return proposal;
+            }
+
+            return {
+                ...proposal,
+                status,
+                applied_at: new Date().toISOString(),
+                rejected_at: null,
+            };
+        });
+        await aiResult.update(
+            {
+                structured_feedback: {
+                    ...structuredFeedback,
+                    rewrite_proposals: updatedRewriteProposals,
+                },
+            },
+            { transaction },
+        );
+        return { targetProposals, aiRun: plainAiRun };
+    }
+    async applyRewriteProposals(
+        user_id: string,
+        ai_run_id: string,
+        applyAiRewriteProposalsDto: ApplyAiRewriteProposalsDto,
+    ) {
+        const transaction = await this.sequelize.transaction();
+        try {
+            const { aiRun, targetProposals = [] } =
+                await this.transactionStatusRewrite(
+                    ai_run_id,
+                    user_id,
+                    AiRewriteStatus.APPLIED,
+                    applyAiRewriteProposalsDto,
+                    transaction,
+                );
+            if (!aiRun.cv_id) {
+                throw new BadRequestException(
+                    'Lượt phân tích này không gắn với CV trong hệ thống nên không thể áp dụng đề xuất.',
+                );
+            }
+            const cv = await this.cvsService.getCvById(
+                user_id,
+                aiRun.cv_id,
+                transaction,
+            );
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            let updatedCvContent: CVContent = JSON.parse(
+                JSON.stringify(cv?.content ?? {}),
+            );
+            for (const proposal of targetProposals) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                updatedCvContent = applyProposalToCvContent(
+                    updatedCvContent,
+                    proposal,
+                );
+            }
+            await this.cvsService.updateCvContent(
+                user_id,
+                aiRun.cv_id,
+                updatedCvContent,
+                transaction,
+            );
+            await transaction.commit();
+            return {
+                message: 'Áp dụng đề xuất thành công',
+                applied_count: targetProposals.length,
+                applied_ids: targetProposals.map((proposal) => proposal.id),
+            };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
+    async rejectedRewriteProposals(
+        user_id: string,
+        ai_run_id: string,
+        applyAiRewriteProposalsDto: ApplyAiRewriteProposalsDto,
+    ) {
+        const transaction = await this.sequelize.transaction();
+        try {
+            const { targetProposals = [] } =
+                await this.transactionStatusRewrite(
+                    ai_run_id,
+                    user_id,
+                    AiRewriteStatus.REJECTED,
+                    applyAiRewriteProposalsDto,
+                    transaction,
+                );
+            await transaction.commit();
+            return {
+                message: 'Bỏ qua đề xuất thành công',
+                rejected_count: targetProposals.length,
+                rejected_ids: targetProposals.map((proposal) => proposal.id),
+            };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
         }
     }
 }

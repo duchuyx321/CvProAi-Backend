@@ -4,6 +4,7 @@ import {
     Controller,
     Get,
     Param,
+    Patch,
     Post,
     Query,
     Req,
@@ -20,6 +21,10 @@ import { documentUploadConfig } from '~/config/file-upload.config';
 import { JwtAuthGuard } from '~/modules/auth/guards';
 import { AnalyzeDto } from './dto/analyze.dto';
 import { QueryAnalyzeDto } from './dto/query-anlalyze.dto';
+import {
+    ApplyAiRewriteProposalsDto,
+    RejectAiRewriteProposalsDto,
+} from '../ai-results/dto/create-ai-results.dto';
 
 @ApiTags('AI Analysis')
 @UseGuards(JwtAuthGuard)
@@ -145,6 +150,35 @@ export class AiAnalysisController {
         return this.aiAnalysisService.generateRewriteSuggestions(
             user_id,
             aiRun_id,
+        );
+    }
+
+    @ApiOperation({ summary: 'Áp dụng các gợi ý CV vào CV' })
+    @Patch('rewrite-proposals/apply/:aiRun_id')
+    async applyRewriteProposals(
+        @Req() req: Request,
+        @Param('aiRun_id') aiRun_id: string,
+        @Body() applyAiRewriteProposalsDto: ApplyAiRewriteProposalsDto,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return await this.aiAnalysisService.applyRewriteProposals(
+            user_id,
+            aiRun_id,
+            applyAiRewriteProposalsDto,
+        );
+    }
+    @ApiOperation({ summary: 'Bỏ qua các gợi ý CV vào CV' })
+    @Patch('rewrite-proposals/rejected/:aiRun_id')
+    async rejectedRewriteProposals(
+        @Req() req: Request,
+        @Param('aiRun_id') aiRun_id: string,
+        @Body() rejectedAiRewriteProposalsDto: RejectAiRewriteProposalsDto,
+    ) {
+        const user_id = (req['user'] as { user_id: string }).user_id;
+        return await this.aiAnalysisService.rejectedRewriteProposals(
+            user_id,
+            aiRun_id,
+            rejectedAiRewriteProposalsDto,
         );
     }
 }

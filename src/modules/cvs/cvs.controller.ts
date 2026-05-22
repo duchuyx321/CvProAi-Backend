@@ -25,6 +25,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateCVSDto } from './dto/update-cvs.dto';
 import { ExportCvsDto } from './dto/export-cvs.dto';
+import { QueryCvDto } from './dto/query-cv.dto';
 
 @ApiTags('cv cá nhân')
 @UseGuards(JwtAuthGuard)
@@ -77,9 +78,13 @@ export class CvsController {
     // [GET] --/cvs/me/:slug
     @ApiOperation({ summary: 'Xem chi tiết cv cá nhân theo slug' })
     @Get('me/:slug')
-    async getCvMeBySlug(@Req() req: Request, @Param('slug') slug: string) {
+    async getCvMeBySlug(
+        @Req() req: Request,
+        @Param('slug') slug: string,
+        @Query() queryCvDto: QueryCvDto,
+    ) {
         const user_id = (req['user'] as { user_id: string }).user_id;
-        return this.cvsService.getCvMeSlug(user_id, slug);
+        return this.cvsService.getCvMeSlug(user_id, slug, false, queryCvDto);
     }
 
     // [POST] --/cvs/add

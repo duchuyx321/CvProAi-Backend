@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Injectable,
     InternalServerErrorException,
     NotFoundException,
@@ -8,15 +9,17 @@ import { col, Op, Transaction } from 'sequelize';
 import { Ai_results, Ai_runs } from '~/models';
 import { CreateAiRunsDto } from './dto/create-ai-run.dto';
 import { UpdateAiRunDto } from './dto/update-ai-run.dto';
-import { ai_run_status } from '~/models/ai_runs.model';
+import { ai_run_status, AiCvSourceType } from '~/models/ai_runs.model';
 import { AiResultsService } from '../ai-results/ai-results.service';
 import { Helper } from '~/utils/helpers';
+import { UsageQuotasService } from '../usage-quotas/usage-quotas.service';
 
 @Injectable()
 export class AiRunsService {
     constructor(
         @InjectModel(Ai_runs) private readonly aiRunsModel: typeof Ai_runs,
         private readonly aiResultService: AiResultsService,
+        private readonly usageQuotasService: UsageQuotasService,
     ) {}
 
     async AdminCountAiRuns(fromDate: Date, toDate: Date) {
@@ -114,9 +117,10 @@ export class AiRunsService {
         }
         return edited;
     }
-    async getAiRunById(id: string, user_id: string) {
+    async getAiRunById(id: string, user_id: string, transaction?: Transaction) {
         const aiRun = await this.aiRunsModel.findOne({
             where: { id, user_id },
+            transaction,
         });
         if (!aiRun) {
             throw new NotFoundException('Ai run không tồn tại');
@@ -175,5 +179,115 @@ export class AiRunsService {
             });
         }
         return { message: 'Xóa ai kết quả phân tích ai thành công.' };
+    }
+
+    async buildAiRunEditorContext(
+        user_id: string,
+        ai_run_id: string,
+        cv_id: string,
+    ) {
+        const aiRun = await this.getAiRunById(ai_run_id, user_id);
+        if (!aiRun) {
+            throw new NotFoundException('Không tìm thấy phiên phân tích AI.');
+        }
+        const aiRunData = aiRun.get({ plain: true });
+        if (aiRunData.cv_id && String(aiRunData.cv_id) !== String(cv_id)) {
+            throw new BadRequestException('Gợi ý AI không thuộc CV hiện tại.');
+        }
+        const quotaLimit =
+            await this.usageQuotasService.getUsageQuotaByUserId(user_id);
+
+        const plan = quotaLimit.plan?.dataValues ?? quotaLimit.plan;
+
+        const isPremium =
+            plan?.slug === 'premium' || Boolean(plan?.view_full_ai_analysis);
+
+        const aiResult =
+            await this.aiResultService.getRawAiResultByAiRunId(ai_run_id);
+
+        if (!aiResult) {
+            throw new NotFoundException('Không tìm thấy kết quả phân tích AI.');
+        }
+        const resultData = aiResult.dataValues ?? aiResult;
+        const structuredFeedback = resultData.structured_feedback ?? {};
+        const allRewriteProposals =
+            (structuredFeedback?.rewrite_proposals as Record<string, any>[]) ??
+            [];
+
+        const pendingRewriteProposals = allRewriteProposals.filter(
+            (proposal) => !proposal.status || proposal.status === 'pending',
+        );
+
+        const appliedRewriteProposals = allRewriteProposals.filter(
+            (proposal) => proposal.status === 'applied',
+        );
+
+        const rejectedRewriteProposals = allRewriteProposals.filter(
+            (proposal) => proposal.status === 'rejected',
+        );
+        const rewriteProposalMeta = {
+            visible_count: isPremium ? pendingRewriteProposals.length : 0,
+            total_count: allRewriteProposals.length,
+            pending_count: pendingRewriteProposals.length,
+            applied_count: appliedRewriteProposals.length,
+            rejected_count: rejectedRewriteProposals.length,
+            hidden_count: isPremium ? 0 : allRewriteProposals.length,
+            is_premium_locked: !isPremium && allRewriteProposals.length > 0,
+        };
+        return {
+            is_active: true,
+            ai_run_id,
+            tier: isPremium ? 'premium' : 'free',
+
+            /**
+             * FE dùng 2 field này để quyết định có cho bấm Apply / Apply all không.
+             */
+            can_apply: isPremium,
+            can_view_rewrite_proposals: isPremium,
+
+            /**
+             * Thông tin nguồn CV.
+             */
+            cv_source_type: aiRunData.cv_source_type ?? null,
+            cv_id: aiRunData.cv_id ?? null,
+
+            /**
+             * Nếu uploaded + chưa có cv_id thì nghĩa là CV upload chưa được convert
+             * thành CV trong hệ thống.
+             */
+            require_cv_conversion:
+                aiRunData.cv_source_type === AiCvSourceType.UPLOADED &&
+                !aiRunData.cv_id,
+
+            /**
+             * Thông tin phân tích cơ bản để FE có thể hiển thị thêm nếu cần.
+             */
+            result: {
+                id: resultData.id,
+                ai_run_id: resultData.ai_run_id,
+                overall_score: resultData.overall_score,
+                ats_score: resultData.ats_score,
+                clarity_score: resultData.clarity_score,
+                impact_score: resultData.impact_score,
+            },
+
+            /**
+             * Quan trọng:
+             * Free không được nhận rewrite_proposals thật,
+             * vì trong đó có old_text/new_text/target_path để apply vào CV.
+             */
+            rewrite_proposals: isPremium ? pendingRewriteProposals : [],
+
+            rewrite_proposals_meta: rewriteProposalMeta,
+            rewrite_proposals_history: isPremium
+                ? {
+                      applied: appliedRewriteProposals,
+                      rejected: rejectedRewriteProposals,
+                  }
+                : null,
+            upgrade_hint: isPremium
+                ? null
+                : 'Nâng cấp Premium để xem gợi ý chỉnh sửa chi tiết và áp dụng trực tiếp vào CV.',
+        };
     }
 }

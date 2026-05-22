@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+    ArrayNotEmpty,
     IsArray,
     IsBoolean,
     IsObject,
@@ -285,8 +286,18 @@ export class ApplyAiRewriteProposalsDto {
      * Nếu apply_all = true thì không cần proposal_ids.
      */
     @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    @ValidateIf((o) => o.apply_all !== true)
+    @IsArray({
+        message: 'proposal_ids phải là một mảng.',
+    })
+    @ArrayNotEmpty({
+        message: 'proposal_ids không được để trống khi không apply toàn bộ.',
+    })
+    @IsString({
+        each: true,
+        message: 'Mỗi proposal_id phải là chuỗi.',
+    })
     proposal_ids?: string[];
 
     /**
@@ -294,7 +305,9 @@ export class ApplyAiRewriteProposalsDto {
      * false hoặc không truyền: apply theo proposal_ids.
      */
     @IsOptional()
-    @IsBoolean()
+    @IsBoolean({
+        message: 'apply_all phải là boolean.',
+    })
     apply_all?: boolean;
 }
 

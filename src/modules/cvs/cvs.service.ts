@@ -24,6 +24,7 @@ import { export_format } from '~/models/cv_exports.model';
 import { Op, Transaction } from 'sequelize';
 import { cv_status } from '~/models/cvs.model';
 import { AiRunsService } from '../ai-runs/ai-runs.service';
+import { QueryCvDto } from './dto/query-cv.dto';
 
 @Injectable()
 export class CvsService {
@@ -100,6 +101,7 @@ export class CvsService {
         user_id: string,
         cv_id: string,
         is_trash: boolean = false,
+        transaction?: Transaction,
     ) {
         const where: any = { user_id, id: cv_id };
         if (is_trash) {
@@ -112,6 +114,7 @@ export class CvsService {
         const alreadyExist = await this.CvsModule.findOne({
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             where,
+            transaction,
         });
         if (!alreadyExist) {
             throw new NotFoundException('Không tìm thấy cv này.');
@@ -121,11 +124,27 @@ export class CvsService {
             data: alreadyExist,
         };
     }
+    async getCvById(user_id: string, cv_id: string, transaction?: Transaction) {
+        const where: any = { user_id, id: cv_id };
+        const alreadyExist = await this.CvsModule.findOne({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            where,
+            transaction,
+            lock: transaction?.LOCK.UPDATE,
+        });
+        if (!alreadyExist) {
+            throw new NotFoundException('Không tìm thấy cv này.');
+        }
+        const plainCV = alreadyExist.get({ plain: true });
+        return plainCV;
+    }
     async getCvMeSlug(
         user_id: string,
         slug: string,
         isAlreadyExist: boolean = false,
+        queryCvDto: QueryCvDto = new QueryCvDto(),
     ) {
+        const { rewrite, ai_run_id } = queryCvDto;
         const alreadyExist = await this.CvsModule.findOne({
             where: { user_id, slug },
         });
@@ -149,12 +168,23 @@ export class CvsService {
 
         // 4. Xóa custom_config gốc đi vì nó đã được "hòa tan" vào finalConfig
         delete cvData?.custom_config;
+        let aiRewrite: Record<string, any> | null = null;
 
+        if (rewrite && ai_run_id) {
+            aiRewrite = await this.aiRunsService.buildAiRunEditorContext(
+                user_id,
+                ai_run_id,
+                cvData?.id as string,
+            );
+        }
         return {
             message: 'Lấy dữ liệu CV thành công.',
             data: {
-                ...cvData,
-                config: finalConfig, // Trả về config hoàn chỉnh cho Frontend
+                cv: {
+                    ...cvData,
+                    config: finalConfig,
+                },
+                ai_rewrite: aiRewrite,
             },
         };
     }
@@ -255,7 +285,12 @@ export class CvsService {
             throw new BadRequestException('Lưu Cv thất bại');
         }
     }
-    async editCv(user_id: string, cv_id: string, updateCVSDto: UpdateCVSDto) {
+    async editCv(
+        user_id: string,
+        cv_id: string,
+        updateCVSDto: UpdateCVSDto,
+        transaction?: Transaction,
+    ) {
         try {
             const cv = await this.getCvMeByID(user_id, cv_id);
             if (updateCVSDto?.title) {
@@ -292,6 +327,7 @@ export class CvsService {
                     user_id,
                     id: cv_id,
                 },
+                transaction,
             });
             if (updated[0] === 0) {
                 const files = this.getFilesToDelete(updateCVSDto);
@@ -311,6 +347,36 @@ export class CvsService {
             }
             throw new BadRequestException('Lưu Cv thất bại');
         }
+    }
+    async updateCvContent(
+        user_id: string,
+        cv_id: string,
+        content: CVContent,
+        transaction?: Transaction,
+    ) {
+        const cv = await this.CvsModule.findOne({
+            where: {
+                id: cv_id,
+                user_id,
+            },
+            transaction,
+            lock: transaction?.LOCK.UPDATE,
+        });
+
+        if (!cv) {
+            throw new BadRequestException(
+                'CV không tồn tại hoặc không thuộc người dùng này.',
+            );
+        }
+
+        await cv.update(
+            {
+                content,
+            },
+            { transaction },
+        );
+
+        return cv;
     }
 
     async exportCv(cvID: string, user_id: string, exportCvsDto: ExportCvsDto) {

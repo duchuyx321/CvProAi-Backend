@@ -86,9 +86,13 @@ export class AiResultsService {
             created_at: result.dataValues.createdAt,
         };
     }
-    async getRawAiResultByAiRunId(ai_run_id: string) {
+    async getRawAiResultByAiRunId(
+        ai_run_id: string,
+        transaction?: Transaction,
+    ) {
         const result = await this.aiResultsModel.findOne({
             where: { ai_run_id },
+            transaction,
         });
 
         if (!result) {

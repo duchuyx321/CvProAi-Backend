@@ -12,7 +12,7 @@ import { Helper } from '~/utils/helpers';
 import { CloudinaryService } from '~/modules/cloudinary/cloudinary.service';
 import { UpdateCVSDto } from './dto/update-cvs.dto';
 import { CvTemplatesService } from '~/modules/cv_templates/cv_templates.service';
-import { merge } from 'lodash';
+import { merge, mergeWith } from 'lodash';
 import { ExportCvsDto } from './dto/export-cvs.dto';
 import puppeteer from 'puppeteer';
 import { UsageQuotasService } from '~/modules/usage-quotas/usage-quotas.service';
@@ -368,10 +368,26 @@ export class CvsService {
                 'CV không tồn tại hoặc không thuộc người dùng này.',
             );
         }
+        const oldContent = cv.getDataValue('content') ?? {};
+        const nextContent = mergeWith(
+            {},
+            oldContent,
+            content,
+            (oldValue, newValue) => {
+                // Nếu field là array như skills, education, experience, projects
+                // thì thay nguyên array đó, tránh lodash merge từng index gây lỗi dữ liệu.
+                if (Array.isArray(newValue)) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+                    return newValue;
+                }
+
+                return undefined;
+            },
+        );
 
         await cv.update(
             {
-                content,
+                content: nextContent,
             },
             { transaction },
         );

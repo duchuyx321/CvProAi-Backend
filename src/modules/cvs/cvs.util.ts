@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -230,6 +231,18 @@ export function setValueByPathStrict(obj: any, path: string, value: any) {
     return obj;
 }
 
+export function normalizeTextForCompare(value: unknown): string {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    return String(value ?? '')
+        .replace(/\r\n/g, '\n')
+        .replace(/^[\-•–]\s*/gm, '') // strip bullet đầu dòng
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*[-–]\s+/g, ' ') // strip "- " còn sót giữa câu
+        .trim()
+        .toLowerCase();
+}
+
 export function replaceCvContentByProposal(
     cvContent: any,
     targetPath: string,
@@ -258,17 +271,46 @@ export function replaceCvContentByProposal(
         );
     }
 
-    /**
-     * Nếu có old_text thì bắt buộc nội dung hiện tại phải còn khớp.
-     * Điều này tránh trường hợp user đã sửa CV sau khi AI phân tích.
-     */
-    if (oldText && currentValue.trim() !== oldText) {
-        throw new BadRequestException(
-            `Nội dung CV tại ${targetPath} đã thay đổi, vui lòng phân tích lại trước khi apply`,
-        );
+    const normalizedCurrent = normalizeTextForCompare(currentValue);
+    const normalizedOld = normalizeTextForCompare(oldText);
+    const normalizedNew = normalizeTextForCompare(newText);
+
+    // ✅ Đã apply rồi — bỏ qua
+    if (normalizedCurrent === normalizedNew) {
+        return cvContent;
     }
 
-    return setValueByPathStrict(cvContent, targetPath, newText);
+    // ✅ Full match — replace toàn bộ field
+    if (!oldText || normalizedCurrent === normalizedOld) {
+        return setValueByPathStrict(cvContent, targetPath, newText);
+    }
+
+    // ✅ NEW: Partial match — old_text là một đoạn con trong currentValue
+    if (normalizedOld && normalizedCurrent.includes(normalizedOld)) {
+        const updatedValue = normalizedCurrent.replace(
+            normalizedOld,
+            normalizedNew,
+        );
+        return setValueByPathStrict(cvContent, targetPath, updatedValue);
+    }
+
+    // ✅ NEW: new_text đã tồn tại trong currentValue — coi như đã apply
+    if (normalizedOld && normalizedCurrent.includes(normalizedNew)) {
+        return cvContent;
+    }
+
+    // ❌ Thực sự mismatch
+    console.log('[applyProposal] old_text mismatch', {
+        proposalId: proposal.id,
+        targetPath,
+        normalizedCurrent,
+        normalizedOld,
+        normalizedNew,
+    });
+
+    throw new BadRequestException(
+        `Nội dung CV tại ${targetPath} đã thay đổi, vui lòng phân tích lại trước khi apply`,
+    );
 }
 
 export function addCvContentByProposal(
